@@ -1,0 +1,5 @@
+/tmp/
+/.vscode/
+/dockerfuse_satellite_amd64
+/dockerfuse_satellite_arm64
+/dockerfuse
