@@ -16,6 +16,13 @@ type DockerFuseFSOps struct {
 	fds map[uintptr]file
 }
 
+func (d *DockerFuseFSOps) CloseAllFDs() {
+	for k, fd := range d.fds {
+		fd.Close()
+		delete(d.fds, k)
+	}
+}
+
 func NewDockerFuseFSOps() (fso *DockerFuseFSOps) {
 	return &DockerFuseFSOps{
 		fds: make(map[uintptr]file),

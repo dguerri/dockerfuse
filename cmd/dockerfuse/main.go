@@ -127,6 +127,7 @@ func main() {
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, syscall.SIGTERM, syscall.SIGINT)
 	go shutdown(server, osSignalChannel)
+	defer close(osSignalChannel)
 
 	server.Wait()
 }

@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"dockerfuse/cmd/satellite/server"
@@ -53,6 +55,12 @@ func main() {
 	log.Printf("(%v) Starting up", time.Now())
 
 	fsops := server.NewDockerFuseFSOps()
+	log.Printf("setting up signal handler...")
+	osSignalChannel := make(chan os.Signal, 1)
+	signal.Notify(osSignalChannel, syscall.SIGTERM, syscall.SIGINT)
+	go shutdown(fsops, osSignalChannel)
+	defer close(osSignalChannel)
+
 	s := rpc.NewServer()
 	s.Register(fsops)
 
@@ -61,4 +69,12 @@ func main() {
 
 	log.Printf("Serving requests")
 	s.ServeConn(rwCloser)
+}
+
+func shutdown(server *server.DockerFuseFSOps, signals <-chan os.Signal) {
+	<-signals
+	log.Printf("cleaning up...")
+	server.CloseAllFDs()
+
+	os.Exit(0)
 }
