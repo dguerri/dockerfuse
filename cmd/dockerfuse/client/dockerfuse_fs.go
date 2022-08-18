@@ -23,6 +23,7 @@ var _ = (fusefs.NodeOpener)((*Node)(nil))
 var _ = (fusefs.NodeReaddirer)((*Node)(nil))
 var _ = (fusefs.NodeReader)((*Node)(nil))
 var _ = (fusefs.NodeReadlinker)((*Node)(nil))
+var _ = (fusefs.NodeReleaser)((*Node)(nil))
 var _ = (fusefs.NodeRenamer)((*Node)(nil))
 var _ = (fusefs.NodeRmdirer)((*Node)(nil))
 var _ = (fusefs.NodeSetattrer)((*Node)(nil))
@@ -63,7 +64,13 @@ func (node *Node) Create(ctx context.Context, name string, flags uint32, mode ui
 }
 
 func (node *Node) Flush(ctx context.Context, fh fusefs.FileHandle) (syserr syscall.Errno) {
-	log.Printf("Close on file %s, fh: '%v'", node.fullPath, fh)
+	log.Printf("Flush on file %s, fh: '%v'", node.fullPath, fh)
+
+	return node.fuseDockerClient.close(ctx, fh)
+}
+
+func (node *Node) Release(ctx context.Context, fh fusefs.FileHandle) (syserr syscall.Errno) {
+	log.Printf("Release on file %s, fh: '%v'", node.fullPath, fh)
 
 	return node.fuseDockerClient.close(ctx, fh)
 }
