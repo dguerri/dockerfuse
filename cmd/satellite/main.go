@@ -36,6 +36,8 @@ var (
 
 func main() {
 	var printVersion bool
+	var persistentLog bool
+	flag.BoolVar(&persistentLog, "log", false, "Enable persistent debug log in /tmp/log.txt")
 	flag.BoolVar(&printVersion, "version", false, "Print the version and exit")
 	flag.Parse()
 
@@ -44,14 +46,16 @@ func main() {
 		os.Exit(0)
 	}
 
-	f, err := os.OpenFile("/tmp/log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+	if persistentLog {
+		f, err := os.OpenFile("/tmp/log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
+		if err != nil {
+			log.Fatalf("error opening log file: %v", err)
+		}
+		defer f.Close()
+		os.Stderr = f
+		log.SetOutput(f)
 	}
-	defer f.Close()
 
-	os.Stderr = f
-	log.SetOutput(f)
 	log.Printf("(%v) Starting up", time.Now())
 
 	fsops := server.NewDockerFuseFSOps()
