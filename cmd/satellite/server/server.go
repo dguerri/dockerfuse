@@ -1,6 +1,8 @@
 package server
 
 import (
+	"errors"
+	"io/fs"
 	"log"
 	"os"
 	"syscall"
@@ -63,13 +65,21 @@ func (fso *DockerFuseFSOps) ReadDir(request rpc_common.ReadDirRequest, reply *rp
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}
 
+	reply.DirEntries = make([]rpc_common.DirEntry, 0, len(files))
 	for _, file := range files {
-		info, _ := file.Info()
+		info, err := file.Info()
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				continue // File has been removed since directory read, skip it
+			} else {
+				log.Printf("Unexpected file.Info() error: %v", err)
+				return rpc_common.ErrnoToRPCErrorString(syscall.EIO)
+			}
+		}
 		sys := *(info.Sys().(*syscall.Stat_t))
-		// The int size of the following fields is OS specific
 		entry := rpc_common.DirEntry{
 			Ino:  sys.Ino,
-			Name: info.Name(),
+			Name: file.Name(),
 			Mode: uint32(sys.Mode), // The int size of this is OS specific
 		}
 		reply.DirEntries = append(reply.DirEntries, entry)
