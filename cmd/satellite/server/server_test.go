@@ -577,10 +577,10 @@ func TestRead(t *testing.T) {
 
 	dfFSOps.fds[29] = mFile
 	err = dfFSOps.Read(rpc_common.ReadRequest{FD: 29, Offset: 0, Num: 10}, &reply)
+
 	if assert.Error(t, err) {
 		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
 	}
-
 	mFile.AssertExpectations(t)
 	assert.Equal(t, rpc_common.ReadReply{}, reply)
 
@@ -592,10 +592,10 @@ func TestRead(t *testing.T) {
 
 	delete(dfFSOps.fds, 29)
 	err = dfFSOps.Read(rpc_common.ReadRequest{FD: 29, Offset: 0, Num: 10}, &reply)
+
 	if assert.Error(t, err) {
 		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
 	}
-
 	mFile.AssertNotCalled(t, "ReadAt", mock.Anything, mock.Anything)
 	assert.Equal(t, rpc_common.ReadReply{}, reply)
 
@@ -622,7 +622,6 @@ func TestRead(t *testing.T) {
 
 	mockFileReadAtCall.Unset()
 	reply = rpc_common.ReadReply{}
-
 }
 
 func TestSeek(t *testing.T) {
@@ -679,4 +678,61 @@ func TestSeek(t *testing.T) {
 
 	mockFileSeekCall.Unset()
 	reply = rpc_common.SeekReply{}
+}
+
+func TestWrite(t *testing.T) {
+	// *** Setup
+	mFS := new(mockFS)
+	dfFS = mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+	var (
+		mockFileWriteAtCall *mock.Call
+		reply               rpc_common.WriteReply
+		err                 error
+	)
+	mFile := new(mockFile)
+
+	// *** Testing error on WriteAt
+	data := []byte{29, 30, 31, 21}
+	mockFileWriteAtCall = mFile.On("WriteAt", data, int64(0)).Return(0, syscall.EACCES)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Write(rpc_common.WriteRequest{FD: 29, Offset: 0, Data: data}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
+	}
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.WriteReply{}, reply)
+
+	mockFileWriteAtCall.Unset()
+	reply = rpc_common.WriteReply{}
+
+	// *** Testing invalid FD
+	mockFileWriteAtCall = mFile.On("WriteAt", data, int64(0)).Return(10, nil)
+
+	delete(dfFSOps.fds, 29)
+	err = dfFSOps.Write(rpc_common.WriteRequest{FD: 29, Offset: 0, Data: data}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+	mFile.AssertNotCalled(t, "WriteAt", mock.Anything, mock.Anything)
+	assert.Equal(t, rpc_common.WriteReply{}, reply)
+
+	mockFileWriteAtCall.Unset()
+	reply = rpc_common.WriteReply{}
+
+	// *** Testing happy path on WriteAt
+	mockFileWriteAtCall = mFile.On("WriteAt", data, int64(3)).Return(len(data), nil)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Write(rpc_common.WriteRequest{FD: 29, Offset: 3, Data: data}, &reply)
+
+	assert.NoError(t, err)
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.WriteReply{Num: len(data)}, reply)
+
+	mockFileWriteAtCall.Unset()
+	reply = rpc_common.WriteReply{}
 }

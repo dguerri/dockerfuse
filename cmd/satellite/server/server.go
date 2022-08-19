@@ -185,15 +185,7 @@ func (fso *DockerFuseFSOps) Write(request rpc_common.WriteRequest, reply *rpc_co
 		return rpc_common.ErrnoToRPCErrorString(syscall.EINVAL)
 	}
 
-	var err error
-	var n int
-	if request.Offset > 0 {
-		n, err = file.WriteAt(request.Data, request.Offset)
-
-	} else {
-		n, err = file.Write(request.Data)
-
-	}
+	n, err := file.WriteAt(request.Data, request.Offset)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}
