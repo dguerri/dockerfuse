@@ -523,40 +523,40 @@ func TestClose(t *testing.T) {
 	dfFS = mFS // Set mock filesystem
 	dfFSOps := NewDockerFuseFSOps()
 	var (
-		mockOSCloseCall *mock.Call
-		reply           rpc_common.CloseReply
-		err             error
+		mockFileCloseCall *mock.Call
+		reply             rpc_common.CloseReply
+		err               error
 	)
 	mFile := new(mockFile)
 
 	// *** Testing error on Close
-	mockOSCloseCall = mFile.On("Close").Return(syscall.EACCES)
+	mockFileCloseCall = mFile.On("Close").Return(syscall.EACCES)
 
 	dfFSOps.fds[29] = mFile
 	err = dfFSOps.Close(rpc_common.CloseRequest{FD: 29}, &reply)
+
 	if assert.Error(t, err) {
 		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
 	}
-
 	mFile.AssertExpectations(t)
 	assert.Equal(t, rpc_common.CloseReply{}, reply)
 
-	mockOSCloseCall.Unset()
+	mockFileCloseCall.Unset()
 	reply = rpc_common.CloseReply{}
 
 	// *** Testing invalid FD
-	mockOSCloseCall = mFile.On("Close").Return(nil)
+	mockFileCloseCall = mFile.On("Close").Return(nil)
 
 	delete(dfFSOps.fds, 29)
 	err = dfFSOps.Close(rpc_common.CloseRequest{FD: 29}, &reply)
+
 	if assert.Error(t, err) {
 		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
 	}
-
 	mFile.AssertNotCalled(t, "Close")
 	assert.Equal(t, rpc_common.CloseReply{}, reply)
 
-	mockOSCloseCall.Unset()
+	mockFileCloseCall.Unset()
 	reply = rpc_common.CloseReply{}
 }
 
@@ -623,4 +623,60 @@ func TestRead(t *testing.T) {
 	mockFileReadAtCall.Unset()
 	reply = rpc_common.ReadReply{}
 
+}
+
+func TestSeek(t *testing.T) {
+	// *** Setup
+	mFS := new(mockFS)
+	dfFS = mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+	var (
+		mockFileSeekCall *mock.Call
+		reply            rpc_common.SeekReply
+		err              error
+	)
+	mFile := new(mockFile)
+
+	// *** Testing error on Close
+	mockFileSeekCall = mFile.On("Seek", int64(10), 0).Return(int64(0), syscall.EACCES)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Seek(rpc_common.SeekRequest{FD: 29, Offset: 10, Whence: 0}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
+	}
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.SeekReply{}, reply)
+
+	mockFileSeekCall.Unset()
+	reply = rpc_common.SeekReply{}
+
+	// *** Testing invalid FD
+	mockFileSeekCall = mFile.On("Seek", int64(0), 0).Return(int64(0), nil)
+
+	delete(dfFSOps.fds, 29)
+	err = dfFSOps.Seek(rpc_common.SeekRequest{FD: 29, Offset: 0, Whence: 0}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+	mFile.AssertNotCalled(t, "Seek", mock.Anything, mock.Anything)
+	assert.Equal(t, rpc_common.SeekReply{}, reply)
+
+	mockFileSeekCall.Unset()
+	reply = rpc_common.SeekReply{}
+
+	// *** Testing happy path for Seek
+	mockFileSeekCall = mFile.On("Seek", int64(10), 0).Return(int64(10), nil)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Seek(rpc_common.SeekRequest{FD: 29, Offset: 10, Whence: 0}, &reply)
+
+	assert.NoError(t, err)
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.SeekReply{Num: 10}, reply)
+
+	mockFileSeekCall.Unset()
+	reply = rpc_common.SeekReply{}
 }
