@@ -15,15 +15,15 @@ type fileSystem interface {
 }
 
 type file interface {
+	Fd() uintptr
 	io.Closer
 	io.Reader
 	io.ReaderAt
 	io.Seeker
+	io.Writer
+	io.WriterAt
 	Stat() (os.FileInfo, error)
-	Fd() uintptr
 	Sync() error
-	WriteAt(b []byte, off int64) (n int, err error)
-	Write(b []byte) (n int, err error)
 }
 
 // osFS implements fileSystem using the local disk
