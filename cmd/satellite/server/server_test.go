@@ -360,7 +360,7 @@ func TestOpen(t *testing.T) {
 	mFile := new(mockFile)
 	mFileInfo := new(mockFileInfo)
 
-	// *** Testing error on ReadDir
+	// *** Testing error on OpenFile
 	mockOSOpenFileCall = mFS.On("OpenFile",
 		"/test/error_on_openfile",
 		syscall.O_CREAT|syscall.O_RDWR,
@@ -527,4 +527,47 @@ func TestOpen(t *testing.T) {
 	mockFileStatCall.Unset()
 	mockFileInfoSysCall.Unset()
 	reply = rpc_common.OpenReply{}
+}
+
+func TestClose(t *testing.T) {
+	// *** Setup
+	mFS := new(mockFS)
+	dfFS = mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+	var (
+		mockOSCloseCall *mock.Call
+		reply           rpc_common.CloseReply
+		err             error
+	)
+	mFile := new(mockFile)
+
+	// *** Testing error on Close
+	mockOSCloseCall = mFile.On("Close").Return(syscall.EACCES)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Close(rpc_common.CloseRequest{FD: 29}, &reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
+	}
+
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.CloseReply{}, reply)
+
+	mockOSCloseCall.Unset()
+	reply = rpc_common.CloseReply{}
+
+	// *** Testing invalid FD
+	mockOSCloseCall = mFile.On("Close").Return(nil)
+
+	delete(dfFSOps.fds, 29)
+	err = dfFSOps.Close(rpc_common.CloseRequest{FD: 29}, &reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+
+	mFile.AssertNotCalled(t, "Close")
+	assert.Equal(t, rpc_common.CloseReply{}, reply)
+
+	mockOSCloseCall.Unset()
+	reply = rpc_common.CloseReply{}
 }
