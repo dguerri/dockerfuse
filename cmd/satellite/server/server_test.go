@@ -559,3 +559,68 @@ func TestClose(t *testing.T) {
 	mockOSCloseCall.Unset()
 	reply = rpc_common.CloseReply{}
 }
+
+func TestRead(t *testing.T) {
+	// *** Setup
+	mFS := new(mockFS)
+	dfFS = mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+	var (
+		mockFileReadAtCall *mock.Call
+		reply              rpc_common.ReadReply
+		err                error
+	)
+	mFile := new(mockFile)
+
+	// *** Testing error on ReadAt
+	mockFileReadAtCall = mFile.On("ReadAt", make([]byte, 10), int64(0)).Return(0, syscall.EACCES)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Read(rpc_common.ReadRequest{FD: 29, Offset: 0, Num: 10}, &reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
+	}
+
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.ReadReply{}, reply)
+
+	mockFileReadAtCall.Unset()
+	reply = rpc_common.ReadReply{}
+
+	// *** Testing invalid FD
+	mockFileReadAtCall = mFile.On("ReadAt", make([]byte, 10), int64(0)).Return(10, nil)
+
+	delete(dfFSOps.fds, 29)
+	err = dfFSOps.Read(rpc_common.ReadRequest{FD: 29, Offset: 0, Num: 10}, &reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+
+	mFile.AssertNotCalled(t, "ReadAt", mock.Anything, mock.Anything)
+	assert.Equal(t, rpc_common.ReadReply{}, reply)
+
+	mockFileReadAtCall.Unset()
+	reply = rpc_common.ReadReply{}
+
+	// *** Testing happy path on ReadAt
+	mockFileReadAtCall = mFile.On("ReadAt", make([]byte, 5), int64(3)).Return(5, nil).Run(
+		func(args mock.Arguments) {
+			data := args.Get(0).([]byte)
+			num := args.Get(1).(int64)
+			for i := 0; i < len(data); i++ {
+				data[i] = byte(i + int(num))
+			}
+		},
+	)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Read(rpc_common.ReadRequest{FD: 29, Offset: 3, Num: 5}, &reply)
+
+	assert.NoError(t, err)
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.ReadReply{Data: []byte{3, 4, 5, 6, 7}}, reply)
+
+	mockFileReadAtCall.Unset()
+	reply = rpc_common.ReadReply{}
+
+}
