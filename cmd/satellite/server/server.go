@@ -150,10 +150,8 @@ func (fso *DockerFuseFSOps) Read(request rpc_common.ReadRequest, reply *rpc_comm
 		return rpc_common.ErrnoToRPCErrorString(syscall.EINVAL)
 	}
 
-	// TODO: verify this is the right thing to do... (i.e., seek whence)
-	file.Seek(int64(request.Offset), 1)
 	data := make([]byte, request.Num)
-	n, err := file.Read(data)
+	n, err := file.ReadAt(data, request.Offset)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}

@@ -181,7 +181,7 @@ func (node *Node) Readdir(ctx context.Context) (ds fusefs.DirStream, errno sysca
 }
 
 func (node *Node) Read(ctx context.Context, fh fusefs.FileHandle, dest []byte, off int64) (result fuse.ReadResult, syserr syscall.Errno) {
-	log.Printf("Read on file %s, fh: '%v'", node.fullPath, fh)
+	log.Printf("Read on file %s, fh: '%v', off: %d", node.fullPath, fh, off)
 
 	data, syserr := node.fuseDockerClient.read(ctx, fh, off, len(dest))
 	if syserr != 0 {
