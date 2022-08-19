@@ -113,17 +113,14 @@ func TestStat(t *testing.T) {
 
 	// *** Testing happy path on regular file
 	mockFileInfoSysCall = mFI.On("Sys").Return(&syscall.Stat_t{
-		Mode:      0760,
-		Nlink:     1,
-		Ino:       29,
-		Uid:       1,
-		Gid:       2,
-		Atimespec: syscall.Timespec{Sec: 2929},
-		Mtimespec: syscall.Timespec{Sec: 2930},
-		Ctimespec: syscall.Timespec{Sec: 2931},
-		Blocks:    29,
-		Blksize:   1024,
-		Size:      29696,
+		Mode:    0760,
+		Nlink:   1,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Blocks:  29,
+		Blksize: 1024,
+		Size:    29696,
 	})
 	mockOSLstatCall = mFS.On("Lstat", "/test/reg").Return(mFI, nil)
 	mockOSReadlink = mFS.On("Readlink", "/test/reg").Return("", nil)
@@ -139,9 +136,6 @@ func TestStat(t *testing.T) {
 		Ino:        29,
 		Uid:        1,
 		Gid:        2,
-		Atime:      2929,
-		Mtime:      2930,
-		Ctime:      2931,
 		Size:       29696,
 		Blocks:     29,
 		Blksize:    1024,
@@ -155,17 +149,14 @@ func TestStat(t *testing.T) {
 
 	// *** Testing happy path on link
 	mockFileInfoSysCall = mFI.On("Sys").Return(&syscall.Stat_t{
-		Mode:      0777,
-		Nlink:     1,
-		Ino:       29,
-		Uid:       1,
-		Gid:       2,
-		Atimespec: syscall.Timespec{Sec: 2929},
-		Mtimespec: syscall.Timespec{Sec: 2930},
-		Ctimespec: syscall.Timespec{Sec: 2931},
-		Blocks:    4,
-		Blksize:   1024,
-		Size:      4096,
+		Mode:    0777,
+		Nlink:   1,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Blocks:  4,
+		Blksize: 1024,
+		Size:    4096,
 	})
 	mockOSLstatCall = mFS.On("Lstat", "/test/symlink").Return(mFI, nil)
 	mockOSReadlink = mFS.On("Readlink", "/test/symlink").Return("/test/symlinktarget", nil)
@@ -181,9 +172,6 @@ func TestStat(t *testing.T) {
 		Ino:        29,
 		Uid:        1,
 		Gid:        2,
-		Atime:      2929,
-		Mtime:      2930,
-		Ctime:      2931,
 		Size:       4096,
 		Blocks:     4,
 		Blksize:    1024,
