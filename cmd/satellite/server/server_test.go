@@ -60,29 +60,29 @@ func (d mockDirEntry) Info() (fs.FileInfo, error) {
 }
 
 // mockMockFile implements mock os.File for testing
-type MockFile struct{ mock.Mock }
+type mockFile struct{ mock.Mock }
 
-func (f MockFile) Fd() uintptr                { a := f.Called(); return a.Get(0).(uintptr) }
-func (f MockFile) Close() error               { a := f.Called(); return a.Error(0) }
-func (f MockFile) Read(p []byte) (int, error) { a := f.Called(p); return a.Int(0), a.Error(0) }
-func (f MockFile) ReadAt(p []byte, o int64) (int, error) {
+func (f mockFile) Fd() uintptr                { a := f.Called(); return a.Get(0).(uintptr) }
+func (f mockFile) Close() error               { a := f.Called(); return a.Error(0) }
+func (f mockFile) Read(p []byte) (int, error) { a := f.Called(p); return a.Int(0), a.Error(0) }
+func (f mockFile) ReadAt(p []byte, o int64) (int, error) {
 	a := f.Called(p, o)
-	return a.Int(0), a.Error(0)
+	return a.Int(0), a.Error(1)
 }
-func (f MockFile) Seek(o int64, w int) (int64, error) {
+func (f mockFile) Seek(o int64, w int) (int64, error) {
 	a := f.Called(o, w)
-	return a.Get(0).(int64), a.Error(0)
+	return a.Get(0).(int64), a.Error(1)
 }
-func (f MockFile) Write(p []byte) (int, error) { a := f.Called(p); return a.Int(0), a.Error(0) }
-func (f MockFile) WriteAt(p []byte, o int64) (int, error) {
+func (f mockFile) Write(p []byte) (int, error) { a := f.Called(p); return a.Int(0), a.Error(0) }
+func (f mockFile) WriteAt(p []byte, o int64) (int, error) {
 	a := f.Called(p, o)
-	return a.Int(0), a.Error(0)
+	return a.Int(0), a.Error(1)
 }
-func (f MockFile) Stat() (os.FileInfo, error) {
+func (f mockFile) Stat() (os.FileInfo, error) {
 	a := f.Called()
-	return a.Get(0).(mockFileInfo), a.Error(0)
+	return a.Get(0).(mockFileInfo), a.Error(1)
 }
-func (f MockFile) Sync() error { a := f.Called(); return a.Error(0) }
+func (f mockFile) Sync() error { a := f.Called(); return a.Error(0) }
 
 func TestStat(t *testing.T) {
 	// *** Setup
@@ -105,7 +105,6 @@ func TestStat(t *testing.T) {
 		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
 	}
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "Lstat", "/test/error_on_lstat")
 	mFS.AssertNotCalled(t, "Readlink")
 	assert.Equal(t, rpc_common.StatReply{}, reply)
 
@@ -133,10 +132,7 @@ func TestStat(t *testing.T) {
 
 	assert.NoError(t, err)
 	mFI.AssertExpectations(t)
-	// mFI.AssertCalled(t, "Sys")
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "Lstat", "/test/reg")
-	// mFS.AssertCalled(t, "Readlink", "/test/reg")
 	assert.Equal(t, rpc_common.StatReply{
 		Mode:       0760,
 		Nlink:      1,
@@ -178,10 +174,7 @@ func TestStat(t *testing.T) {
 
 	assert.NoError(t, err)
 	mFI.AssertExpectations(t)
-	// mFI.AssertCalled(t, "Sys")
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "Lstat", "/test/symlink")
-	// mFS.AssertCalled(t, "Readlink", "/test/symlink")
 	assert.Equal(t, rpc_common.StatReply{
 		Mode:       0777,
 		Nlink:      1,
@@ -215,6 +208,8 @@ func TestReadDir(t *testing.T) {
 		mFIs              []mockFileInfo
 		mDIs              []mockDirEntry
 	)
+	mFIs = []mockFileInfo{{}, {}, {}}
+	mDIs = []mockDirEntry{{}, {}, {}}
 
 	// *** Testing error on ReadDir
 	mockOSReadDirCall = mFS.On("ReadDir", "/test/error_on_readdir").Return([]mockDirEntry{}, syscall.ENOENT)
@@ -225,15 +220,12 @@ func TestReadDir(t *testing.T) {
 		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
 	}
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "ReadDir", "/test/error_on_readdir")
 	assert.Equal(t, rpc_common.ReadDirReply{}, reply)
 
 	mockOSReadDirCall.Unset()
 	reply = rpc_common.ReadDirReply{}
 
 	// *** Testing happy path
-	mFIs = []mockFileInfo{{}, {}, {}}
-	mDIs = []mockDirEntry{{}, {}, {}}
 	mFIs[0].On("Sys").Return(&syscall.Stat_t{Ino: 29, Mode: 0660})
 	mDIs[0].On("Name").Return("file1")
 	mDIs[0].On("Info").Return(mFIs[0], nil)
@@ -253,7 +245,6 @@ func TestReadDir(t *testing.T) {
 		mFIs[i].AssertExpectations(t)
 	}
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "ReadDir", "/test/happy_path")
 	assert.Equal(t, rpc_common.ReadDirReply{
 		DirEntries: []rpc_common.DirEntry{
 			{Ino: 29, Name: "file1", Mode: 0660},
@@ -263,6 +254,14 @@ func TestReadDir(t *testing.T) {
 	}, reply)
 
 	mockOSReadDirCall.Unset()
+	for i := range mFIs {
+		for _, e := range mFIs[i].ExpectedCalls {
+			e.Unset()
+		}
+		for _, e := range mDIs[i].ExpectedCalls {
+			e.Unset()
+		}
+	}
 	reply = rpc_common.ReadDirReply{}
 
 	// *** Testing empty directory
@@ -272,15 +271,20 @@ func TestReadDir(t *testing.T) {
 
 	assert.NoError(t, err)
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "ReadDir", "/test/happy_path")
 	assert.Equal(t, rpc_common.ReadDirReply{DirEntries: []rpc_common.DirEntry{}}, reply)
 
 	mockOSReadDirCall.Unset()
+	for i := range mFIs {
+		for _, e := range mFIs[i].ExpectedCalls {
+			e.Unset()
+		}
+		for _, e := range mDIs[i].ExpectedCalls {
+			e.Unset()
+		}
+	}
 	reply = rpc_common.ReadDirReply{}
 
 	// *** Testing ErrNotExist on Info()
-	mFIs = []mockFileInfo{{}, {}, {}}
-	mDIs = []mockDirEntry{{}, {}, {}}
 	mFIs[0].On("Sys").Return(&syscall.Stat_t{Ino: 29, Mode: 0660})
 	mDIs[0].On("Name").Return("file1")
 	mDIs[0].On("Info").Return(mockFileInfo{}, fs.ErrNotExist)
@@ -296,7 +300,6 @@ func TestReadDir(t *testing.T) {
 
 	assert.NoError(t, err)
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "ReadDir", "/test/info_err_no_exist")
 	assert.Equal(t, rpc_common.ReadDirReply{
 		DirEntries: []rpc_common.DirEntry{
 			{Ino: 30, Name: "link1", Mode: 0777},
@@ -305,11 +308,17 @@ func TestReadDir(t *testing.T) {
 	}, reply)
 
 	mockOSReadDirCall.Unset()
+	for i := range mFIs {
+		for _, e := range mFIs[i].ExpectedCalls {
+			e.Unset()
+		}
+		for _, e := range mDIs[i].ExpectedCalls {
+			e.Unset()
+		}
+	}
 	reply = rpc_common.ReadDirReply{}
 
 	// *** Testing unexpected error on Info()
-	mFIs = []mockFileInfo{{}, {}, {}}
-	mDIs = []mockDirEntry{{}, {}, {}}
 	mFIs[0].On("Sys").Return(&syscall.Stat_t{Ino: 29, Mode: 0660})
 	mDIs[0].On("Name").Return("file1")
 	mDIs[0].On("Info").Return(mockFileInfo{}, syscall.EINVAL)
@@ -327,10 +336,195 @@ func TestReadDir(t *testing.T) {
 		assert.Equal(t, fmt.Errorf("errno: EIO"), err)
 	}
 	mFS.AssertExpectations(t)
-	// mFS.AssertCalled(t, "ReadDir", "/test/info_err_unexpected")
 	assert.Equal(t, rpc_common.ReadDirReply{DirEntries: []rpc_common.DirEntry{}}, reply)
 
 	mockOSReadDirCall.Unset()
 	reply = rpc_common.ReadDirReply{}
+}
 
+func TestOpen(t *testing.T) {
+	// *** Setup
+	mFS := new(mockFS)
+	dfFS = mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+	var (
+		mockOSOpenFileCall,
+		mockOSReadlinkCall,
+		mockFileFdCall,
+		mockFileStatCall,
+		mockFileInfoSysCall,
+		mockFileCloseCall *mock.Call
+		reply rpc_common.OpenReply
+		err   error
+	)
+	mFile := new(mockFile)
+	mFileInfo := new(mockFileInfo)
+
+	// *** Testing error on ReadDir
+	mockOSOpenFileCall = mFS.On("OpenFile",
+		"/test/error_on_openfile",
+		syscall.O_CREAT|syscall.O_RDWR,
+		fs.FileMode(0666),
+	).Return(mockFile{}, syscall.ENOENT)
+
+	err = dfFSOps.Open(rpc_common.OpenRequest{
+		FullPath: "/test/error_on_openfile",
+		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_CREAT | syscall.O_RDWR),
+		Mode:     fs.FileMode(0666),
+	}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.OpenReply{}, reply)
+
+	mockOSOpenFileCall.Unset()
+	reply = rpc_common.OpenReply{}
+
+	// *** Testing Open on a regular existing file
+	mockFileInfoSysCall = mFileInfo.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0660,
+		Nlink:   2,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Size:    3072,
+		Blocks:  3,
+		Blksize: 1024,
+	})
+	mockOSOpenFileCall = mFS.On("OpenFile", "/test/openfile_reg", syscall.O_RDWR, fs.FileMode(0640)).Return(mFile, nil)
+	mockFileFdCall = mFile.On("Fd").Return(uintptr(29))
+	mockFileStatCall = mFile.On("Stat").Return(*mFileInfo, nil)
+	mockOSReadlinkCall = mFS.On("Readlink", "/test/openfile_reg").Return("", nil)
+
+	err = dfFSOps.Open(rpc_common.OpenRequest{
+		FullPath: "/test/openfile_reg",
+		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_RDWR),
+		Mode:     fs.FileMode(0640),
+	}, &reply)
+
+	assert.NoError(t, err)
+	mFileInfo.AssertExpectations(t)
+	mFile.AssertExpectations(t)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.OpenReply{
+		FD: 29,
+		StatReply: rpc_common.StatReply{
+			Mode:       0660,
+			Nlink:      2,
+			Ino:        29,
+			Uid:        1,
+			Gid:        2,
+			Size:       3072,
+			Blocks:     3,
+			Blksize:    1024,
+			LinkTarget: "",
+		},
+	}, reply)
+
+	mockOSOpenFileCall.Unset()
+	mockOSReadlinkCall.Unset()
+	mockFileFdCall.Unset()
+	mockFileStatCall.Unset()
+	mockFileInfoSysCall.Unset()
+	reply = rpc_common.OpenReply{}
+
+	// *** Testing Open on a symlink, closing the previous Fd
+	mockFileInfoSysCall = mFileInfo.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0777,
+		Nlink:   1,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Size:    1024,
+		Blocks:  1,
+		Blksize: 1024,
+	})
+	mockOSOpenFileCall = mFS.On("OpenFile", "/test/openfile_symlink", syscall.O_RDWR, fs.FileMode(0640)).Return(mFile, nil)
+	mockFileFdCall = mFile.On("Fd").Return(uintptr(29))
+	mockFileCloseCall = mFile.On("Close").Return(nil) // FD 29 was already in the table since last test
+	mockFileStatCall = mFile.On("Stat").Return(*mFileInfo, nil)
+	mockOSReadlinkCall = mFS.On("Readlink", "/test/openfile_symlink").Return("/test/openfile_symlink_target", nil)
+
+	err = dfFSOps.Open(rpc_common.OpenRequest{
+		FullPath: "/test/openfile_symlink",
+		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_RDWR),
+		Mode:     fs.FileMode(0640),
+	}, &reply)
+
+	assert.NoError(t, err)
+	mFileInfo.AssertExpectations(t)
+	mFile.AssertExpectations(t)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.OpenReply{
+		FD: 29,
+		StatReply: rpc_common.StatReply{
+			Mode:       0777,
+			Nlink:      1,
+			Ino:        29,
+			Uid:        1,
+			Gid:        2,
+			Size:       1024,
+			Blocks:     1,
+			Blksize:    1024,
+			LinkTarget: "/test/openfile_symlink_target",
+		},
+	}, reply)
+
+	mockOSOpenFileCall.Unset()
+	mockOSReadlinkCall.Unset()
+	mockFileFdCall.Unset()
+	mockFileStatCall.Unset()
+	mockFileInfoSysCall.Unset()
+	mockFileCloseCall.Unset()
+	reply = rpc_common.OpenReply{}
+
+	// *** Testing Open on a regular existing file, w/ readlink error
+	mockFileInfoSysCall = mFileInfo.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0660,
+		Nlink:   2,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Size:    3072,
+		Blocks:  3,
+		Blksize: 1024,
+	})
+	mockOSOpenFileCall = mFS.On("OpenFile", "/test/openfile_reg", syscall.O_RDWR, fs.FileMode(0640)).Return(mFile, nil)
+	mockFileFdCall = mFile.On("Fd").Return(uintptr(30))
+	mockFileStatCall = mFile.On("Stat").Return(*mFileInfo, nil)
+	mockOSReadlinkCall = mFS.On("Readlink", "/test/openfile_reg").Return("", syscall.EINVAL)
+
+	err = dfFSOps.Open(rpc_common.OpenRequest{
+		FullPath: "/test/openfile_reg",
+		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_RDWR),
+		Mode:     fs.FileMode(0640),
+	}, &reply)
+
+	assert.NoError(t, err)
+	mFileInfo.AssertExpectations(t)
+	mFile.AssertExpectations(t)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.OpenReply{
+		FD: 30,
+		StatReply: rpc_common.StatReply{
+			Mode:       0660,
+			Nlink:      2,
+			Ino:        29,
+			Uid:        1,
+			Gid:        2,
+			Size:       3072,
+			Blocks:     3,
+			Blksize:    1024,
+			LinkTarget: "",
+		},
+	}, reply)
+
+	mockOSOpenFileCall.Unset()
+	mockOSReadlinkCall.Unset()
+	mockFileFdCall.Unset()
+	mockFileStatCall.Unset()
+	mockFileInfoSysCall.Unset()
+	reply = rpc_common.OpenReply{}
 }
