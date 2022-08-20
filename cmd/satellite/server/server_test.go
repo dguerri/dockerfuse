@@ -749,3 +749,59 @@ func TestWrite(t *testing.T) {
 	mockFileWriteAtCall.Unset()
 	reply = rpc_common.WriteReply{}
 }
+
+func TestFsync(t *testing.T) {
+	// *** Setup
+	mFS := new(mockFS)
+	dfFS = mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+	var (
+		mockFileFsyncCall *mock.Call
+		reply             rpc_common.FsyncReply
+		err               error
+	)
+	mFile := new(mockFile)
+
+	// *** Testing error on Fsync
+	mockFileFsyncCall = mFile.On("Sync").Return(syscall.EACCES)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Fsync(rpc_common.FsyncRequest{FD: 29}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
+	}
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.FsyncReply{}, reply)
+
+	mockFileFsyncCall.Unset()
+	reply = rpc_common.FsyncReply{}
+
+	// *** Testing invalid FD
+	mockFileFsyncCall = mFile.On("Sync").Return(nil)
+
+	delete(dfFSOps.fds, 29)
+	err = dfFSOps.Fsync(rpc_common.FsyncRequest{FD: 29}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+	mFile.AssertNotCalled(t, "Sync")
+	assert.Equal(t, rpc_common.FsyncReply{}, reply)
+
+	mockFileFsyncCall.Unset()
+	reply = rpc_common.FsyncReply{}
+
+	// *** Testing happy path
+	mockFileFsyncCall = mFile.On("Sync").Return(nil)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Fsync(rpc_common.FsyncRequest{FD: 29}, &reply)
+
+	assert.NoError(t, err)
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.FsyncReply{}, reply)
+
+	mockFileFsyncCall.Unset()
+	reply = rpc_common.FsyncReply{}
+}
