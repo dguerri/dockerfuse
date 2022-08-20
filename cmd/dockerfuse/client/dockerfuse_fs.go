@@ -85,7 +85,7 @@ func (node *Node) Getattr(ctx context.Context, fh fusefs.FileHandle, out *fuse.A
 	log.Printf("Getattr() called on '%s' (fh: %v)", node.fullPath, fh)
 
 	var fuseAttr StatAttr
-	errno = node.fuseDockerClient.stat(ctx, node.fullPath, &fuseAttr)
+	errno = node.fuseDockerClient.stat(ctx, node.fullPath, fh, &fuseAttr)
 	if errno != 0 {
 		log.Printf("error in stat for '%s': %d", node.fullPath, errno)
 		return
@@ -114,7 +114,7 @@ func (node *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	fullPath := filepath.Clean(filepath.Join(node.fullPath, name))
 
 	var fuseAttr StatAttr
-	syserr = node.fuseDockerClient.stat(ctx, fullPath, &fuseAttr)
+	syserr = node.fuseDockerClient.stat(ctx, fullPath, nil, &fuseAttr)
 	if syserr != 0 {
 		log.Printf("error in stat for '%s': %d", fullPath, syserr)
 		return nil, syserr

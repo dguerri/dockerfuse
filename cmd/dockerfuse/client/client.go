@@ -25,6 +25,10 @@ const (
 	satelliteExecPath  = "/tmp"
 )
 
+type StatAttr struct {
+	FuseAttr   fuse.Attr
+	LinkTarget string
+}
 type FuseDockerClientInterface interface {
 	isConnected() bool
 	disconnect()
@@ -43,7 +47,7 @@ type FuseDockerClientInterface interface {
 	rmdir(ctx context.Context, fullPath string) (syserr syscall.Errno)
 	seek(ctx context.Context, fh fusefs.FileHandle, offset int64, whence int) (n int64, syserr syscall.Errno)
 	setAttr(ctx context.Context, fullPath string, in *fuse.SetAttrIn, out *StatAttr) (syserr syscall.Errno)
-	stat(ctx context.Context, fullPath string, attr *StatAttr) (syserr syscall.Errno)
+	stat(ctx context.Context, fullPath string, fh fusefs.FileHandle, attr *StatAttr) (syserr syscall.Errno)
 	symlink(ctx context.Context, oldFullPath string, newFullPath string) (syserr syscall.Errno)
 	unlink(ctx context.Context, fullPath string) (syserr syscall.Errno)
 	write(ctx context.Context, fh fusefs.FileHandle, offset int64, data []byte) (n int, syserr syscall.Errno)
@@ -167,15 +171,19 @@ func (d *FuseDockerClient) connectSatellite(ctx context.Context) (err error) {
 	return
 }
 
-type StatAttr struct {
-	FuseAttr   fuse.Attr
-	LinkTarget string
-}
+func (d *FuseDockerClient) stat(ctx context.Context, fullPath string, fh fusefs.FileHandle, attr *StatAttr) (syserr syscall.Errno) {
+	var (
+		reply   rpc_common.StatReply
+		request rpc_common.StatRequest
+	)
 
-func (d *FuseDockerClient) stat(ctx context.Context, fullPath string, attr *StatAttr) (syserr syscall.Errno) {
-	var reply rpc_common.StatReply
+	request.FullPath = fullPath
+	if fh != nil {
+		request.FD = fh.(uintptr)
+		request.UseFD = true
+	}
 
-	err := d.rpcClient.Call("DockerFuseFSOps.Stat", rpc_common.StatRequest{FullPath: fullPath}, &reply)
+	err := d.rpcClient.Call("DockerFuseFSOps.Stat", request, &reply)
 	if err != nil {
 		syserr = rpc_common.RPCErrorStringTOErrno(err)
 		return

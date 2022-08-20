@@ -34,10 +34,21 @@ func NewDockerFuseFSOps() (fso *DockerFuseFSOps) {
 func (fso *DockerFuseFSOps) Stat(request rpc_common.StatRequest, reply *rpc_common.StatReply) error {
 	log.Printf("Stat called: %v", request)
 
-	info, err := dfFS.Lstat(request.FullPath)
+	var info fs.FileInfo
+	var err error
+	if request.UseFD {
+		fd, ok := fso.fds[request.FD]
+		if !ok {
+			return rpc_common.ErrnoToRPCErrorString(syscall.EINVAL)
+		}
+		info, err = fd.Stat()
+	} else {
+		info, err = dfFS.Lstat(request.FullPath)
+	}
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}
+
 	sys := info.Sys().(*syscall.Stat_t)
 	reply.Mode = uint32(sys.Mode)   // The int size of this is OS specific
 	reply.Nlink = uint32(sys.Nlink) // 64bit on amd64, 32bit on arm64
@@ -50,9 +61,11 @@ func (fso *DockerFuseFSOps) Stat(request rpc_common.StatRequest, reply *rpc_comm
 	reply.Size = sys.Size
 	reply.Blocks = sys.Blocks
 	reply.Blksize = int32(sys.Blksize) // 64bit on amd64, 32bit on arm64
-	reply.LinkTarget, err = dfFS.Readlink(request.FullPath)
-	if err != nil {
-		reply.LinkTarget = ""
+	if !request.UseFD {
+		reply.LinkTarget, err = dfFS.Readlink(request.FullPath)
+		if err != nil {
+			reply.LinkTarget = ""
+		}
 	}
 	return nil
 }

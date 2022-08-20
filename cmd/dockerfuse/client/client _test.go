@@ -78,7 +78,7 @@ func TestStat(t *testing.T) {
 	// Testing stat error
 	mockCallCall = rpcC.On("Call", "DockerFuseFSOps.Stat", rpc_common.StatRequest{FullPath: "/test/error"}, &reply).Return(fmt.Errorf("errno: ENOENT"))
 
-	syserr = fDC.stat(context.TODO(), "/test/error", &statAttr)
+	syserr = fDC.stat(context.TODO(), "/test/error", nil, &statAttr)
 
 	if assert.Error(t, syserr) {
 		assert.Equal(t, syscall.ENOENT, syserr)
@@ -111,7 +111,7 @@ func TestStat(t *testing.T) {
 		}
 	})
 
-	syserr = fDC.stat(context.TODO(), "/test/symlink", &statAttr)
+	syserr = fDC.stat(context.TODO(), "/test/symlink", nil, &statAttr)
 
 	assert.Equal(t, syserr, syscall.Errno(0))
 	rpcC.AssertExpectations(t)
@@ -155,7 +155,7 @@ func TestStat(t *testing.T) {
 		}
 	})
 
-	syserr = fDC.stat(context.TODO(), "/test/reg", &statAttr)
+	syserr = fDC.stat(context.TODO(), "/test/reg", nil, &statAttr)
 
 	assert.Equal(t, syserr, syscall.Errno(0))
 	rpcC.AssertExpectations(t)
