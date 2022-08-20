@@ -210,7 +210,7 @@ func (fso *DockerFuseFSOps) Write(request rpc_common.WriteRequest, reply *rpc_co
 func (fso *DockerFuseFSOps) Unlink(request rpc_common.UnlinkRequest, reply *rpc_common.UnlinkReply) error {
 	log.Printf("Unlink called: %v", request)
 
-	err := os.Remove(request.FullPath)
+	err := dfFS.Remove(request.FullPath)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}

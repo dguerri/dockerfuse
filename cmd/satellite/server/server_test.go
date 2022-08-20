@@ -37,6 +37,7 @@ func (o *mockFS) OpenFile(n string, f int, p os.FileMode) (file, error) {
 	args := o.Called(n, f, p)
 	return args.Get(0).(file), args.Error(1)
 }
+func (o *mockFS) Remove(n string) error { args := o.Called(n); return args.Error(0) }
 
 // mockFileInfo implements mock os.FileInfo for testing
 type mockFileInfo struct{ mock.Mock }
@@ -756,6 +757,41 @@ func TestWrite(t *testing.T) {
 	assert.NoError(t, err)
 	mFile.AssertExpectations(t)
 	assert.Equal(t, rpc_common.WriteReply{Num: len(data)}, reply)
+}
+
+func TestUnlink(t *testing.T) {
+	// *** Setup
+	dfFSOps := NewDockerFuseFSOps()
+	var (
+		mFS   mockFS
+		reply rpc_common.UnlinkReply
+		err   error
+	)
+	dfFS = &mFS // Set mock filesystem
+
+	// *** Testing error on Remove
+	mFS = mockFS{}
+	reply = rpc_common.UnlinkReply{}
+	mFS.On("Remove", "/test/error_on_openfile").Return(syscall.ENOENT)
+
+	err = dfFSOps.Unlink(rpc_common.UnlinkRequest{FullPath: "/test/error_on_openfile"}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.UnlinkReply{}, reply)
+
+	// *** Testing happy path
+	mFS = mockFS{}
+	reply = rpc_common.UnlinkReply{}
+	mFS.On("Remove", "/test/happy_path").Return(nil)
+
+	err = dfFSOps.Unlink(rpc_common.UnlinkRequest{FullPath: "/test/happy_path"}, &reply)
+
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.UnlinkReply{}, reply)
 }
 
 func TestFsync(t *testing.T) {
