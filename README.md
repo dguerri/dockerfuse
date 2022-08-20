@@ -1,6 +1,6 @@
 # DockerFuse: interact with filesystem of Docker containters, via FUSE
 
-[![Unit Tests](https://github.com/dguerri/dockerfuse/actions/workflows/run-test.yml/badge.svg)](https://github.com/dguerri/dockerfuse/actions/workflows/run-test.yml) [![Coverage Status](https://coveralls.io/repos/github/dguerri/dockerfuse/badge.svg?branch=main)](https://coveralls.io/github/dguerri/dockerfuse?branch=main)
+[![unit tests](https://github.com/dguerri/dockerfuse/actions/workflows/run-test.yml/badge.svg)](https://github.com/dguerri/dockerfuse/actions/workflows/run-test.yml) [![Coverage Status](https://coveralls.io/repos/github/dguerri/dockerfuse/badge.svg?branch=main)](https://coveralls.io/github/dguerri/dockerfuse?branch=main)
 
 ***NOTE: this software is a WIP, use at your risk!***
 
