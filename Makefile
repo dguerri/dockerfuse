@@ -28,7 +28,7 @@ clean:
 	rm -f dockerfuse_satellite_amd64 dockerfuse_satellite_arm64 dockerfuse
 
 test: 
-	go test ./...
+	go test ./... -cover
 
 interactive_test: all
 	docker kill dockerfuse-test || true

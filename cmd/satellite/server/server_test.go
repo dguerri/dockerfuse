@@ -558,6 +558,19 @@ func TestClose(t *testing.T) {
 
 	mockFileCloseCall.Unset()
 	reply = rpc_common.CloseReply{}
+
+	// *** Testing happy path
+	mockFileCloseCall = mFile.On("Close").Return(nil)
+
+	dfFSOps.fds[29] = mFile
+	err = dfFSOps.Close(rpc_common.CloseRequest{FD: 29}, &reply)
+
+	assert.NoError(t, err)
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpc_common.CloseReply{}, reply)
+
+	mockFileCloseCall.Unset()
+	reply = rpc_common.CloseReply{}
 }
 
 func TestRead(t *testing.T) {
