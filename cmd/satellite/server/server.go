@@ -250,7 +250,7 @@ func (fso *DockerFuseFSOps) Mkdir(request rpc_common.MkdirRequest, reply *rpc_co
 func (fso *DockerFuseFSOps) Rmdir(request rpc_common.RmdirRequest, reply *rpc_common.RmdirReply) error {
 	log.Printf("Rmdir called: %v", request)
 
-	err := os.Remove(request.FullPath)
+	err := dfFS.Remove(request.FullPath)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}
@@ -260,7 +260,7 @@ func (fso *DockerFuseFSOps) Rmdir(request rpc_common.RmdirRequest, reply *rpc_co
 func (fso *DockerFuseFSOps) Rename(request rpc_common.RenameRequest, reply *rpc_common.RenameReply) error {
 	log.Printf("Rename called: %v", request)
 
-	err := os.Rename(request.FullPath, request.FullNewPath)
+	err := dfFS.Rename(request.FullPath, request.FullNewPath)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}

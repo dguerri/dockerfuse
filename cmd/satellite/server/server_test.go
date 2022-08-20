@@ -39,6 +39,7 @@ func (o *mockFS) OpenFile(n string, f int, p os.FileMode) (file, error) {
 }
 func (o *mockFS) Remove(n string) error               { args := o.Called(n); return args.Error(0) }
 func (o *mockFS) Mkdir(n string, p os.FileMode) error { args := o.Called(n); return args.Error(0) }
+func (o *mockFS) Rename(a, b string) error            { args := o.Called(a, b); return args.Error(0) }
 
 // mockFileInfo implements mock os.FileInfo for testing
 type mockFileInfo struct{ mock.Mock }
@@ -920,4 +921,80 @@ func TestMkdir(t *testing.T) {
 		Blksize:    1024,
 		LinkTarget: "",
 	}, reply)
+}
+
+func TestRmdir(t *testing.T) {
+	// *** Setup
+	var (
+		mFS   mockFS
+		reply rpc_common.RmdirReply
+		err   error
+	)
+	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+
+	// *** Testing not empty error on Remove
+	mFS = mockFS{}
+	mFS.On("Remove", "/test/error_on_remove").Return(syscall.ENOTEMPTY)
+
+	reply = rpc_common.RmdirReply{}
+	err = dfFSOps.Rmdir(rpc_common.RmdirRequest{FullPath: "/test/error_on_remove"}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOTEMPTY"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.RmdirReply{}, reply)
+
+	// *** Testing happy path
+	mFS = mockFS{}
+	mFS.On("Remove", "/test/remove_dir").Return(nil)
+
+	reply = rpc_common.RmdirReply{}
+	err = dfFSOps.Rmdir(rpc_common.RmdirRequest{FullPath: "/test/remove_dir"}, &reply)
+
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.RmdirReply{}, reply)
+}
+
+func TestRename(t *testing.T) {
+	// *** Setup
+	var (
+		mFS   mockFS
+		reply rpc_common.RenameReply
+		err   error
+	)
+	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+
+	// *** Testing not empty error on Remove
+	mFS = mockFS{}
+	mFS.On("Rename", "/test/error_on_rename", "/test/error_on_rename_new").Return(syscall.ENOENT)
+
+	reply = rpc_common.RenameReply{}
+	err = dfFSOps.Rename(rpc_common.RenameRequest{
+		FullPath:    "/test/error_on_rename",
+		FullNewPath: "/test/error_on_rename_new",
+	}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.RenameReply{}, reply)
+
+	// *** Testing happy path
+	mFS = mockFS{}
+	mFS.On("Rename", "/test/a_file", "/test/a_new_file").Return(nil)
+
+	reply = rpc_common.RenameReply{}
+	err = dfFSOps.Rename(rpc_common.RenameRequest{
+		FullPath:    "/test/a_file",
+		FullNewPath: "/test/a_new_file",
+	}, &reply)
+
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.RenameReply{}, reply)
 }
