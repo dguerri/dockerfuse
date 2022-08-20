@@ -244,12 +244,6 @@ func (fso *DockerFuseFSOps) Rmdir(request rpc_common.RmdirRequest, reply *rpc_co
 	return nil
 }
 
-const (
-	RENAME_NOREPLACE = 1
-	RENAME_EXCHANGE  = 2
-	RENAME_WHITEOUT  = 4
-)
-
 func (fso *DockerFuseFSOps) Rename(request rpc_common.RenameRequest, reply *rpc_common.RenameReply) error {
 	log.Printf("Rename called: %v", request)
 
