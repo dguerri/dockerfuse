@@ -13,6 +13,7 @@ type fileSystem interface {
 	ReadDir(name string) ([]os.DirEntry, error)
 	Readlink(name string) (string, error)
 	Remove(name string) error
+	Mkdir(name string, perm os.FileMode) error
 }
 
 type file interface {
@@ -35,3 +36,4 @@ func (*osFS) ReadDir(n string) ([]os.DirEntry, error)               { return os.
 func (*osFS) Readlink(n string) (string, error)                     { return os.Readlink(n) }
 func (*osFS) OpenFile(n string, f int, p os.FileMode) (file, error) { return os.OpenFile(n, f, p) }
 func (*osFS) Remove(n string) error                                 { return os.Remove(n) }
+func (*osFS) Mkdir(n string, p os.FileMode) error                   { return os.Mkdir(n, p) }

@@ -37,7 +37,8 @@ func (o *mockFS) OpenFile(n string, f int, p os.FileMode) (file, error) {
 	args := o.Called(n, f, p)
 	return args.Get(0).(file), args.Error(1)
 }
-func (o *mockFS) Remove(n string) error { args := o.Called(n); return args.Error(0) }
+func (o *mockFS) Remove(n string) error               { args := o.Called(n); return args.Error(0) }
+func (o *mockFS) Mkdir(n string, p os.FileMode) error { args := o.Called(n); return args.Error(0) }
 
 // mockFileInfo implements mock os.FileInfo for testing
 type mockFileInfo struct{ mock.Mock }
@@ -363,7 +364,6 @@ func TestReadDir(t *testing.T) {
 
 func TestOpen(t *testing.T) {
 	// *** Setup
-	dfFSOps := NewDockerFuseFSOps()
 	var (
 		mFS   mockFS
 		mFI   mockFileInfo
@@ -372,17 +372,14 @@ func TestOpen(t *testing.T) {
 		err   error
 	)
 	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
 
 	// *** Testing error on OpenFile
 	mFS = mockFS{}
-	reply = rpc_common.OpenReply{}
 	dfFSOps.fds = map[uintptr]file{}
-	mFS.On("OpenFile",
-		"/test/error_on_openfile",
-		syscall.O_CREAT|syscall.O_RDWR,
-		fs.FileMode(0666),
-	).Return(mockFile{}, syscall.ENOENT)
+	mFS.On("OpenFile", "/test/error_on_openfile", syscall.O_CREAT|syscall.O_RDWR, fs.FileMode(0666)).Return(mockFile{}, syscall.ENOENT)
 
+	reply = rpc_common.OpenReply{}
 	err = dfFSOps.Open(rpc_common.OpenRequest{
 		FullPath: "/test/error_on_openfile",
 		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_CREAT | syscall.O_RDWR),
@@ -399,7 +396,6 @@ func TestOpen(t *testing.T) {
 	mFS = mockFS{}
 	mFile = mockFile{}
 	mFI = mockFileInfo{}
-	reply = rpc_common.OpenReply{}
 	dfFSOps.fds = map[uintptr]file{}
 	mFI.On("Sys").Return(&syscall.Stat_t{
 		Mode:    0660,
@@ -416,6 +412,7 @@ func TestOpen(t *testing.T) {
 	mFS.On("OpenFile", "/test/openfile_reg", syscall.O_RDWR, fs.FileMode(0640)).Return(mFile, nil)
 	mFS.On("Readlink", "/test/openfile_reg").Return("", nil)
 
+	reply = rpc_common.OpenReply{}
 	err = dfFSOps.Open(rpc_common.OpenRequest{
 		FullPath: "/test/openfile_reg",
 		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_RDWR),
@@ -445,7 +442,6 @@ func TestOpen(t *testing.T) {
 	mFS = mockFS{}
 	mFile = mockFile{}
 	mFI = mockFileInfo{}
-	reply = rpc_common.OpenReply{}
 	mFI.On("Sys").Return(&syscall.Stat_t{
 		Mode:    0777,
 		Nlink:   1,
@@ -463,6 +459,7 @@ func TestOpen(t *testing.T) {
 	mFS.On("Readlink", "/test/openfile_symlink").Return("/test/openfile_symlink_target", nil)
 	dfFSOps.fds = map[uintptr]file{29: mFile}
 
+	reply = rpc_common.OpenReply{}
 	err = dfFSOps.Open(rpc_common.OpenRequest{
 		FullPath: "/test/openfile_symlink",
 		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_RDWR),
@@ -492,7 +489,6 @@ func TestOpen(t *testing.T) {
 	mFS = mockFS{}
 	mFile = mockFile{}
 	mFI = mockFileInfo{}
-	reply = rpc_common.OpenReply{}
 	dfFSOps.fds = map[uintptr]file{}
 	mFI.On("Sys").Return(&syscall.Stat_t{
 		Mode:    0660,
@@ -509,6 +505,7 @@ func TestOpen(t *testing.T) {
 	mFS.On("OpenFile", "/test/openfile_reg", syscall.O_RDWR, fs.FileMode(0640)).Return(mFile, nil)
 	mFS.On("Readlink", "/test/openfile_reg").Return("", syscall.EINVAL)
 
+	reply = rpc_common.OpenReply{}
 	err = dfFSOps.Open(rpc_common.OpenRequest{
 		FullPath: "/test/openfile_reg",
 		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_RDWR),
@@ -761,37 +758,37 @@ func TestWrite(t *testing.T) {
 
 func TestUnlink(t *testing.T) {
 	// *** Setup
-	dfFSOps := NewDockerFuseFSOps()
 	var (
 		mFS   mockFS
 		reply rpc_common.UnlinkReply
 		err   error
 	)
 	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
 
 	// *** Testing error on Remove
 	mFS = mockFS{}
-	reply = rpc_common.UnlinkReply{}
 	mFS.On("Remove", "/test/error_on_openfile").Return(syscall.ENOENT)
 
+	reply = rpc_common.UnlinkReply{}
 	err = dfFSOps.Unlink(rpc_common.UnlinkRequest{FullPath: "/test/error_on_openfile"}, &reply)
 
+	assert.Equal(t, rpc_common.UnlinkReply{}, reply)
 	if assert.Error(t, err) {
 		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
 	}
 	mFS.AssertExpectations(t)
-	assert.Equal(t, rpc_common.UnlinkReply{}, reply)
 
 	// *** Testing happy path
 	mFS = mockFS{}
-	reply = rpc_common.UnlinkReply{}
 	mFS.On("Remove", "/test/happy_path").Return(nil)
 
+	reply = rpc_common.UnlinkReply{}
 	err = dfFSOps.Unlink(rpc_common.UnlinkRequest{FullPath: "/test/happy_path"}, &reply)
 
+	assert.Equal(t, rpc_common.UnlinkReply{}, reply)
 	assert.NoError(t, err)
 	mFS.AssertExpectations(t)
-	assert.Equal(t, rpc_common.UnlinkReply{}, reply)
 }
 
 func TestFsync(t *testing.T) {
@@ -844,4 +841,83 @@ func TestFsync(t *testing.T) {
 	assert.NoError(t, err)
 	mFile.AssertExpectations(t)
 	assert.Equal(t, rpc_common.FsyncReply{}, reply)
+}
+
+func TestMkdir(t *testing.T) {
+	// *** Setup
+	var (
+		mFS   mockFS
+		mFI   mockFileInfo
+		reply rpc_common.MkdirReply
+		err   error
+	)
+	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+
+	// *** Testing error on Mkdir
+	mFS = mockFS{}
+	mFS.On("Mkdir", "/test/error_on_mkdir").Return(syscall.ENOENT)
+
+	reply = rpc_common.MkdirReply{}
+	err = dfFSOps.Mkdir(rpc_common.MkdirRequest{FullPath: "/test/error_on_mkdir"}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.MkdirReply{}, reply)
+
+	// *** Testing error on Lstat
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	mFS.On("Mkdir", "/test/error_on_lstat").Return(nil)
+	mFS.On("Lstat", "/test/error_on_lstat").Return(mFI, syscall.EINVAL)
+
+	reply = rpc_common.MkdirReply{}
+	err = dfFSOps.Mkdir(rpc_common.MkdirRequest{FullPath: "/test/error_on_lstat"}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.MkdirReply{}, reply)
+
+	// *** Testing happy path
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	dfFSOps.fds = map[uintptr]file{}
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0730,
+		Nlink:   1,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Size:    1024,
+		Blocks:  1,
+		Blksize: 1024,
+	})
+	mFS.On("Mkdir", "/test/openfile_reg").Return(nil)
+	mFS.On("Lstat", "/test/openfile_reg").Return(mFI, nil)
+	mFS.On("Readlink", "/test/openfile_reg").Return("", nil)
+
+	reply = rpc_common.MkdirReply{}
+	err = dfFSOps.Mkdir(rpc_common.MkdirRequest{
+		FullPath: "/test/openfile_reg",
+		Mode:     fs.FileMode(0730),
+	}, &reply)
+
+	assert.NoError(t, err)
+	mFI.AssertExpectations(t)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.MkdirReply{
+		Mode:       0730,
+		Nlink:      1,
+		Ino:        29,
+		Uid:        1,
+		Gid:        2,
+		Size:       1024,
+		Blocks:     1,
+		Blksize:    1024,
+		LinkTarget: "",
+	}, reply)
 }

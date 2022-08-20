@@ -235,7 +235,7 @@ func (fso *DockerFuseFSOps) Fsync(request rpc_common.FsyncRequest, reply *rpc_co
 func (fso *DockerFuseFSOps) Mkdir(request rpc_common.MkdirRequest, reply *rpc_common.MkdirReply) error {
 	log.Printf("Mkdir called: %v", request)
 
-	err := os.Mkdir(request.FullPath, os.FileMode(request.Mode))
+	err := dfFS.Mkdir(request.FullPath, os.FileMode(request.Mode))
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}
