@@ -126,7 +126,6 @@ func TestStat(t *testing.T) {
 	// *** Testing happy path on regular file
 	mFS = mockFS{}
 	mFI = mockFileInfo{}
-	reply = rpc_common.StatReply{}
 	mFI.On("Sys").Return(&syscall.Stat_t{
 		Mode:    0760,
 		Nlink:   1,
@@ -140,6 +139,7 @@ func TestStat(t *testing.T) {
 	mFS.On("Lstat", "/test/reg").Return(mFI, nil)
 	mFS.On("Readlink", "/test/reg").Return("", nil)
 
+	reply = rpc_common.StatReply{}
 	err = dfFSOps.Stat(rpc_common.StatRequest{FullPath: "/test/reg", UseFD: false}, &reply)
 
 	assert.NoError(t, err)
@@ -942,7 +942,7 @@ func TestRmdir(t *testing.T) {
 	dfFS = &mFS // Set mock filesystem
 	dfFSOps := NewDockerFuseFSOps()
 
-	// *** Testing not empty error on Remove
+	// *** Testing directory not empty error on Remove
 	mFS = mockFS{}
 	mFS.On("Remove", "/test/error_on_remove").Return(syscall.ENOTEMPTY)
 
@@ -977,7 +977,7 @@ func TestRename(t *testing.T) {
 	dfFS = &mFS // Set mock filesystem
 	dfFSOps := NewDockerFuseFSOps()
 
-	// *** Testing not empty error on Remove
+	// *** Testing error on Rename
 	mFS = mockFS{}
 	mFS.On("Rename", "/test/error_on_rename", "/test/error_on_rename_new").Return(syscall.ENOENT)
 
@@ -1018,7 +1018,7 @@ func TestReadlink(t *testing.T) {
 	dfFS = &mFS // Set mock filesystem
 	dfFSOps := NewDockerFuseFSOps()
 
-	// *** Testing not empty error on Readlink
+	// *** Testing error on Readlink
 	mFS = mockFS{}
 	mFS.On("Readlink", "/test/error_on_readlink").Return("", syscall.ENOENT)
 
@@ -1053,7 +1053,7 @@ func TestLink(t *testing.T) {
 	dfFS = &mFS // Set mock filesystem
 	dfFSOps := NewDockerFuseFSOps()
 
-	// *** Testing not empty error on Link
+	// *** Testing error on Link
 	mFS = mockFS{}
 	mFS.On("Link", "/test/error_on_link", "/test/error_on_link_bis").Return(syscall.ENOENT)
 
@@ -1094,7 +1094,7 @@ func TestSymlink(t *testing.T) {
 	dfFS = &mFS // Set mock filesystem
 	dfFSOps := NewDockerFuseFSOps()
 
-	// *** Testing not empty error on Link
+	// *** Testing error on Symlink
 	mFS = mockFS{}
 	mFS.On("Symlink", "/test/error_on_symlink", "/test/error_on_symlink_bis").Return(syscall.ENOENT)
 
@@ -1123,4 +1123,312 @@ func TestSymlink(t *testing.T) {
 	assert.NoError(t, err)
 	mFS.AssertExpectations(t)
 	assert.Equal(t, rpc_common.SymlinkReply{}, reply)
+}
+
+func TestSetAttr(t *testing.T) {
+	// *** Setup
+	var (
+		mFS     mockFS
+		mFI     mockFileInfo
+		reply   rpc_common.SetAttrReply
+		request rpc_common.SetAttrRequest
+		err     error
+	)
+	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+
+	// *** Testing error on Chmod
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/error_on_chmod"}
+	request.SetMode(0666)
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetATime(time.UnixMicro(1661073465))
+	request.SetMTime(time.UnixMicro(1661073466))
+	request.SetSize(29)
+	mFS.On("Chmod", "/test/error_on_chmod", os.FileMode(0666)).Return(syscall.ENOENT)
+	mFS.On("Chown", "/test/error_on_chmod", 0, 1).Return(nil)
+	mFS.On("UtimesNano", "/test/error_on_chmod", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	}).Return(nil)
+	mFS.On("Truncate", "/test/error_on_chmod", int64(29)).Return(nil)
+	mFS.On("Lstat", "/test/error_on_chmod").Return(mockFileInfo{}, nil)
+	mFS.On("Readlink", "/test/error_on_chmod").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{}, reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+
+	mFS.AssertCalled(t, "Chmod", "/test/error_on_chmod", os.FileMode(0666))
+	mFS.AssertNotCalled(t, "Chown", mock.Anything)
+	mFS.AssertNotCalled(t, "UtimesNano", mock.Anything)
+	mFS.AssertNotCalled(t, "Truncate", mock.Anything)
+	mFS.AssertNotCalled(t, "Lstat", mock.Anything)
+	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
+
+	// *** Testing error on Chown
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/error_on_chown"}
+	request.SetMode(0666)
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetATime(time.UnixMicro(1661073465))
+	request.SetMTime(time.UnixMicro(1661073466))
+	request.SetSize(29)
+	mFS.On("Chmod", "/test/error_on_chown", os.FileMode(0666)).Return(nil)
+	mFS.On("Chown", "/test/error_on_chown", 0, 1).Return(syscall.EACCES)
+	mFS.On("UtimesNano", "/test/error_on_chown", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	}).Return(nil)
+	mFS.On("Truncate", "/test/error_on_chown", int64(29)).Return(nil)
+	mFS.On("Lstat", "/test/error_on_chmod").Return(mockFileInfo{}, nil)
+	mFS.On("Readlink", "/test/error_on_chmod").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{}, reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EACCES"), err)
+	}
+
+	mFS.AssertCalled(t, "Chmod", "/test/error_on_chown", os.FileMode(0666))
+	mFS.AssertCalled(t, "Chown", "/test/error_on_chown", 0, 1)
+	mFS.AssertNotCalled(t, "UtimesNano", mock.Anything)
+	mFS.AssertNotCalled(t, "Truncate", mock.Anything)
+	mFS.AssertNotCalled(t, "Lstat", mock.Anything)
+	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
+
+	// *** Testing error on UtimesNano
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/error_on_utimesnano"}
+	request.SetMode(0666)
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetATime(time.UnixMicro(1661073465))
+	request.SetMTime(time.UnixMicro(1661073466))
+	request.SetSize(29)
+	mFS.On("Chmod", "/test/error_on_utimesnano", os.FileMode(0666)).Return(nil)
+	mFS.On("Chown", "/test/error_on_utimesnano", 0, 1).Return(nil)
+	mFS.On("UtimesNano", "/test/error_on_utimesnano", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	}).Return(syscall.EINVAL)
+	mFS.On("Truncate", "/test/error_on_utimesnano", int64(29)).Return(nil)
+	mFS.On("Lstat", "/test/error_on_chmod").Return(mockFileInfo{}, nil)
+	mFS.On("Readlink", "/test/error_on_chmod").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{}, reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+
+	mFS.AssertCalled(t, "Chmod", "/test/error_on_utimesnano", os.FileMode(0666))
+	mFS.AssertCalled(t, "Chown", "/test/error_on_utimesnano", 0, 1)
+	mFS.AssertCalled(t, "UtimesNano", "/test/error_on_utimesnano", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	})
+	mFS.AssertNotCalled(t, "Truncate", mock.Anything)
+	mFS.AssertNotCalled(t, "Lstat", mock.Anything)
+	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
+
+	// *** Testing error on Truncate
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/error_on_truncate"}
+	request.SetMode(0666)
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetATime(time.UnixMicro(1661073465))
+	request.SetMTime(time.UnixMicro(1661073466))
+	request.SetSize(29)
+	mFS.On("Chmod", "/test/error_on_truncate", os.FileMode(0666)).Return(nil)
+	mFS.On("Chown", "/test/error_on_truncate", 0, 1).Return(nil)
+	mFS.On("UtimesNano", "/test/error_on_truncate", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	}).Return(nil)
+	mFS.On("Truncate", "/test/error_on_truncate", int64(29)).Return(syscall.EFAULT)
+	mFS.On("Lstat", "/test/error_on_chmod").Return(mockFileInfo{}, nil)
+	mFS.On("Readlink", "/test/error_on_chmod").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{}, reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EFAULT"), err)
+	}
+
+	mFS.AssertCalled(t, "Chmod", "/test/error_on_truncate", os.FileMode(0666))
+	mFS.AssertCalled(t, "Chown", "/test/error_on_truncate", 0, 1)
+	mFS.AssertCalled(t, "UtimesNano", "/test/error_on_truncate", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	})
+	mFS.AssertCalled(t, "Truncate", "/test/error_on_truncate", int64(29))
+	mFS.AssertNotCalled(t, "Lstat", mock.Anything)
+	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
+
+	// *** Testing happy path, changing everything
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/happy_path"}
+	request.SetMode(0666)
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetATime(time.UnixMicro(1661073465))
+	request.SetMTime(time.UnixMicro(1661073466))
+	request.SetSize(29696)
+	mFS.On("Chmod", "/test/happy_path", os.FileMode(0666)).Return(nil)
+	mFS.On("Chown", "/test/happy_path", 0, 1).Return(nil)
+	mFS.On("UtimesNano", "/test/happy_path", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	}).Return(nil)
+	mFS.On("Truncate", "/test/happy_path", int64(29696)).Return(nil)
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0666,
+		Nlink:   1,
+		Ino:     2929,
+		Uid:     0,
+		Gid:     1,
+		Blocks:  29,
+		Blksize: 1024,
+		Size:    29696,
+	})
+	mFS.On("Lstat", "/test/happy_path").Return(mFI, nil)
+	mFS.On("Readlink", "/test/happy_path").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{
+		Mode:       0666,
+		Nlink:      1,
+		Ino:        2929,
+		Uid:        0,
+		Gid:        1,
+		Size:       29696,
+		Blocks:     29,
+		Blksize:    1024,
+		LinkTarget: "",
+	}, reply)
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	mFI.AssertExpectations(t)
+
+	// *** Testing happy path, changing everything but atime
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/happy_path"}
+	request.SetMode(0666)
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetMTime(time.UnixMicro(1661073466))
+	request.SetSize(29696)
+	mFS.On("Chmod", "/test/happy_path", os.FileMode(0666)).Return(nil)
+	mFS.On("Chown", "/test/happy_path", 0, 1).Return(nil)
+	mFS.On("UtimesNano", "/test/happy_path", []syscall.Timespec{
+		{Nsec: rpc_common.UTIME_OMIT},
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	}).Return(nil)
+	mFS.On("Truncate", "/test/happy_path", int64(29696)).Return(nil)
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0666,
+		Nlink:   1,
+		Ino:     2929,
+		Uid:     0,
+		Gid:     1,
+		Blocks:  29,
+		Blksize: 1024,
+		Size:    29696,
+	})
+	mFS.On("Lstat", "/test/happy_path").Return(mFI, nil)
+	mFS.On("Readlink", "/test/happy_path").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{
+		Mode:       0666,
+		Nlink:      1,
+		Ino:        2929,
+		Uid:        0,
+		Gid:        1,
+		Size:       29696,
+		Blocks:     29,
+		Blksize:    1024,
+		LinkTarget: "",
+	}, reply)
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	mFI.AssertExpectations(t)
+
+	// *** Testing happy path, changing everything but mtime and mode
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/happy_path"}
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetATime(time.UnixMicro(1661073465))
+	request.SetSize(29696)
+	mFS.On("Chmod", "/test/happy_path", os.FileMode(0666)).Return(nil)
+	mFS.On("Chown", "/test/happy_path", 0, 1).Return(nil)
+	mFS.On("UtimesNano", "/test/happy_path", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		{Nsec: rpc_common.UTIME_OMIT},
+	}).Return(nil)
+	mFS.On("Truncate", "/test/happy_path", int64(29696)).Return(nil)
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0660,
+		Nlink:   1,
+		Ino:     2929,
+		Uid:     0,
+		Gid:     1,
+		Blocks:  29,
+		Blksize: 1024,
+		Size:    29696,
+	})
+	mFS.On("Lstat", "/test/happy_path").Return(mFI, nil)
+	mFS.On("Readlink", "/test/happy_path").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{
+		Mode:       0660,
+		Nlink:      1,
+		Ino:        2929,
+		Uid:        0,
+		Gid:        1,
+		Size:       29696,
+		Blocks:     29,
+		Blksize:    1024,
+		LinkTarget: "",
+	}, reply)
+	assert.NoError(t, err)
+	mFI.AssertExpectations(t)
+	mFS.AssertNotCalled(t, "Chmod", mock.Anything)
+	mFS.AssertCalled(t, "Chown", "/test/happy_path", 0, 1)
+	mFS.AssertCalled(t, "UtimesNano", "/test/happy_path", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		{Nsec: rpc_common.UTIME_OMIT},
+	})
+	mFS.AssertCalled(t, "Truncate", "/test/happy_path", int64(29696))
+	mFS.AssertCalled(t, "Lstat", "/test/happy_path")
+	mFS.AssertCalled(t, "Readlink", "/test/happy_path")
 }
