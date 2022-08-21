@@ -271,7 +271,7 @@ func (fso *DockerFuseFSOps) Rename(request rpc_common.RenameRequest, reply *rpc_
 func (fso *DockerFuseFSOps) Readlink(request rpc_common.ReadlinkRequest, reply *rpc_common.ReadlinkReply) error {
 	log.Printf("Readlink called: %v", request)
 
-	linkTarget, err := os.Readlink(request.FullPath)
+	linkTarget, err := dfFS.Readlink(request.FullPath)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}
@@ -282,7 +282,7 @@ func (fso *DockerFuseFSOps) Readlink(request rpc_common.ReadlinkRequest, reply *
 func (fso *DockerFuseFSOps) Link(request rpc_common.LinkRequest, reply *rpc_common.LinkReply) error {
 	log.Printf("Link called: %v", request)
 
-	err := os.Link(request.OldFullPath, request.NewFullPath)
+	err := dfFS.Link(request.OldFullPath, request.NewFullPath)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}
@@ -293,7 +293,7 @@ func (fso *DockerFuseFSOps) Link(request rpc_common.LinkRequest, reply *rpc_comm
 func (fso *DockerFuseFSOps) Symlink(request rpc_common.SymlinkRequest, reply *rpc_common.SymlinkReply) error {
 	log.Printf("Symlink called: %v", request)
 
-	err := os.Symlink(request.OldFullPath, request.NewFullPath)
+	err := dfFS.Symlink(request.OldFullPath, request.NewFullPath)
 	if err != nil {
 		return rpc_common.ErrnoToRPCErrorString(err)
 	}

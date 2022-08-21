@@ -40,6 +40,8 @@ func (o *mockFS) OpenFile(n string, f int, p os.FileMode) (file, error) {
 func (o *mockFS) Remove(n string) error               { args := o.Called(n); return args.Error(0) }
 func (o *mockFS) Mkdir(n string, p os.FileMode) error { args := o.Called(n); return args.Error(0) }
 func (o *mockFS) Rename(a, b string) error            { args := o.Called(a, b); return args.Error(0) }
+func (o *mockFS) Link(a, b string) error              { args := o.Called(a, b); return args.Error(0) }
+func (o *mockFS) Symlink(a, b string) error           { args := o.Called(a, b); return args.Error(0) }
 
 // mockFileInfo implements mock os.FileInfo for testing
 type mockFileInfo struct{ mock.Mock }
@@ -997,4 +999,121 @@ func TestRename(t *testing.T) {
 	assert.NoError(t, err)
 	mFS.AssertExpectations(t)
 	assert.Equal(t, rpc_common.RenameReply{}, reply)
+}
+
+func TestReadlink(t *testing.T) {
+	// *** Setup
+	var (
+		mFS   mockFS
+		reply rpc_common.ReadlinkReply
+		err   error
+	)
+	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+
+	// *** Testing not empty error on Readlink
+	mFS = mockFS{}
+	mFS.On("Readlink", "/test/error_on_readlink").Return("", syscall.ENOENT)
+
+	reply = rpc_common.ReadlinkReply{}
+	err = dfFSOps.Readlink(rpc_common.ReadlinkRequest{FullPath: "/test/error_on_readlink"}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.ReadlinkReply{}, reply)
+
+	// *** Testing happy path
+	mFS = mockFS{}
+	mFS.On("Readlink", "/test/a_file").Return("/test/a_file_target", nil)
+
+	reply = rpc_common.ReadlinkReply{}
+	err = dfFSOps.Readlink(rpc_common.ReadlinkRequest{FullPath: "/test/a_file"}, &reply)
+
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.ReadlinkReply{LinkTarget: "/test/a_file_target"}, reply)
+}
+
+func TestLink(t *testing.T) {
+	// *** Setup
+	var (
+		mFS   mockFS
+		reply rpc_common.LinkReply
+		err   error
+	)
+	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+
+	// *** Testing not empty error on Link
+	mFS = mockFS{}
+	mFS.On("Link", "/test/error_on_link", "/test/error_on_link_bis").Return(syscall.ENOENT)
+
+	reply = rpc_common.LinkReply{}
+	err = dfFSOps.Link(rpc_common.LinkRequest{
+		OldFullPath: "/test/error_on_link",
+		NewFullPath: "/test/error_on_link_bis",
+	}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.LinkReply{}, reply)
+
+	// *** Testing happy path
+	mFS = mockFS{}
+	mFS.On("Link", "/test/a_file", "/test/another_file").Return(nil)
+
+	reply = rpc_common.LinkReply{}
+	err = dfFSOps.Link(rpc_common.LinkRequest{
+		OldFullPath: "/test/a_file",
+		NewFullPath: "/test/another_file",
+	}, &reply)
+
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.LinkReply{}, reply)
+}
+
+func TestSymlink(t *testing.T) {
+	// *** Setup
+	var (
+		mFS   mockFS
+		reply rpc_common.SymlinkReply
+		err   error
+	)
+	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
+
+	// *** Testing not empty error on Link
+	mFS = mockFS{}
+	mFS.On("Symlink", "/test/error_on_symlink", "/test/error_on_symlink_bis").Return(syscall.ENOENT)
+
+	reply = rpc_common.SymlinkReply{}
+	err = dfFSOps.Symlink(rpc_common.SymlinkRequest{
+		OldFullPath: "/test/error_on_symlink",
+		NewFullPath: "/test/error_on_symlink_bis",
+	}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
+	}
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.SymlinkReply{}, reply)
+
+	// *** Testing happy path
+	mFS = mockFS{}
+	mFS.On("Symlink", "/test/a_file", "/test/another_file").Return(nil)
+
+	reply = rpc_common.SymlinkReply{}
+	err = dfFSOps.Symlink(rpc_common.SymlinkRequest{
+		OldFullPath: "/test/a_file",
+		NewFullPath: "/test/another_file",
+	}, &reply)
+
+	assert.NoError(t, err)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.SymlinkReply{}, reply)
 }

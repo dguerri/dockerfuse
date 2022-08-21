@@ -8,6 +8,7 @@ import (
 var dfFS fileSystem = &osFS{}
 
 type fileSystem interface {
+	Link(oldname, newname string) error
 	Lstat(name string) (os.FileInfo, error)
 	Mkdir(name string, perm os.FileMode) error
 	OpenFile(name string, flag int, perm os.FileMode) (file, error)
@@ -15,6 +16,7 @@ type fileSystem interface {
 	Readlink(name string) (string, error)
 	Remove(name string) error
 	Rename(oldpath, newpath string) error
+	Symlink(oldname, newname string) error
 }
 
 type file interface {
@@ -32,6 +34,7 @@ type file interface {
 // osFS implements fileSystem using the local disk
 type osFS struct{}
 
+func (*osFS) Link(o, n string) error                                { return os.Link(o, n) }
 func (*osFS) Lstat(n string) (os.FileInfo, error)                   { return os.Lstat(n) }
 func (*osFS) Mkdir(n string, p os.FileMode) error                   { return os.Mkdir(n, p) }
 func (*osFS) OpenFile(n string, f int, p os.FileMode) (file, error) { return os.OpenFile(n, f, p) }
@@ -39,3 +42,4 @@ func (*osFS) ReadDir(n string) ([]os.DirEntry, error)               { return os.
 func (*osFS) Readlink(n string) (string, error)                     { return os.Readlink(n) }
 func (*osFS) Remove(n string) error                                 { return os.Remove(n) }
 func (*osFS) Rename(o, n string) error                              { return os.Rename(o, n) }
+func (*osFS) Symlink(o, n string) error                             { return os.Symlink(o, n) }
