@@ -306,7 +306,7 @@ func (fso *DockerFuseFSOps) SetAttr(request rpc_common.SetAttrRequest, reply *rp
 
 	// Set Mode
 	if m, ok := request.AttrIn.GetMode(); ok {
-		if err := syscall.Chmod(request.FullPath, m); err != nil {
+		if err := os.Chmod(request.FullPath, os.FileMode(m)); err != nil {
 			return rpc_common.ErrnoToRPCErrorString(err)
 		}
 	}
@@ -323,7 +323,7 @@ func (fso *DockerFuseFSOps) SetAttr(request rpc_common.SetAttrRequest, reply *rp
 		if gok {
 			sgid = int(gid)
 		}
-		if err := syscall.Chown(request.FullPath, suid, sgid); err != nil {
+		if err := os.Chown(request.FullPath, suid, sgid); err != nil {
 			return rpc_common.ErrnoToRPCErrorString(err)
 		}
 	}
@@ -351,7 +351,7 @@ func (fso *DockerFuseFSOps) SetAttr(request rpc_common.SetAttrRequest, reply *rp
 
 	// Set size
 	if sz, ok := request.AttrIn.GetSize(); ok {
-		if err := syscall.Truncate(request.FullPath, int64(sz)); err != nil {
+		if err := os.Truncate(request.FullPath, int64(sz)); err != nil {
 			return rpc_common.ErrnoToRPCErrorString(err)
 		}
 	}
