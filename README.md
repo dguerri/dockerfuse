@@ -49,7 +49,7 @@ To name some: Docker-fs has to download the whole container image on start (usin
 Dockerfuse implements operations needed by FUSE through RPC calls and a satellite app.
 Dockerfuse satellite uses native systemcall (through the Go standard library) on the running container image. For filesystem operations, this is both faster and more flexible than using Docker Engine's API.
 
-The obvious caveat is that while docker-fs doesn't need any additional software on the container, dockerfuse has to uplad a small binary (i.e. < 5 MB) to the container.
+The obvious caveat is that while docker-fs doesn't need any additional software on the container, dockerfuse has to uplad a small binary (i.e. ~ 4 MBytes) to the container.
 The satellite is light-weight also for the computational power requirement, so it shouldn't affect your workload. Of course the actual load depends on the filesystem operations performed (and it should be noted that MacOS issues a huge number of `Getattr()` (STATFS) calls, potentially [affecting FUSE performances](https://github.com/hanwen/go-fuse#macos-support))
 
 ### Q. Does it work on remote Docker servers?
