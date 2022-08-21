@@ -233,7 +233,7 @@ func (node *Node) Rmdir(ctx context.Context, name string) (errno syscall.Errno) 
 }
 
 func (node *Node) Setattr(ctx context.Context, f fusefs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) (errno syscall.Errno) {
-	log.Printf("Setattr() called on '%s'", node.fullPath)
+	log.Printf("Setattr() called on '%s' with %v", node.fullPath, *in)
 
 	var fuseAttr StatAttr
 	errno = node.fuseDockerClient.setAttr(ctx, node.fullPath, in, &fuseAttr)

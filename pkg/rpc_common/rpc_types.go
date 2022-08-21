@@ -1,9 +1,8 @@
 package rpc_common
 
 import (
-	"io/fs"
-
-	"github.com/hanwen/go-fuse/v2/fuse"
+	"os"
+	"time"
 )
 
 type DirEntry struct {
@@ -42,7 +41,7 @@ type StatReply struct {
 type OpenRequest struct {
 	FullPath string
 	SAFlags  uint16 // System-agnostic flags
-	Mode     fs.FileMode
+	Mode     os.FileMode
 }
 type OpenReply struct {
 	FD uintptr
@@ -94,7 +93,7 @@ type FsyncReply struct{}
 
 type MkdirRequest struct {
 	FullPath string
-	Mode     fs.FileMode
+	Mode     os.FileMode
 }
 type MkdirReply StatReply
 

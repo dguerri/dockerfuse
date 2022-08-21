@@ -10,19 +10,21 @@ import (
 	"syscall"
 )
 
-// open() flags. Different OSes use different values for open flags
+/* open() flags. Different OSes use different values for open flags.
+   We translate OS specific into system agnostic flags and back to
+	 OS specific on the target system. */
 const (
-	O_RDONLY   uint16 = 0b0000000000000000
-	O_WRONLY   uint16 = 0b0000000000000001
-	O_RDWR     uint16 = 0b0000000000000010
-	O_APPEND   uint16 = 0b0000000000000100
-	O_ASYNC    uint16 = 0b0000000000001000
-	O_CREAT    uint16 = 0b0000000000010000
-	O_EXCL     uint16 = 0b0000000000100000
-	O_NOCTTY   uint16 = 0b0000000001000000
-	O_NONBLOCK uint16 = 0b0000000010000000
-	O_SYNC     uint16 = 0b0000000100000000
-	O_TRUNC    uint16 = 0b0000001000000000
+	O_RDONLY   uint16 = 0
+	O_WRONLY   uint16 = (1 << 0)
+	O_RDWR     uint16 = (1 << 1)
+	O_APPEND   uint16 = (1 << 2)
+	O_ASYNC    uint16 = (1 << 3)
+	O_CREAT    uint16 = (1 << 4)
+	O_EXCL     uint16 = (1 << 5)
+	O_NOCTTY   uint16 = (1 << 6)
+	O_NONBLOCK uint16 = (1 << 7)
+	O_SYNC     uint16 = (1 << 8)
+	O_TRUNC    uint16 = (1 << 9)
 )
 
 /* Converts system-specific open() flags to an internal representation.
