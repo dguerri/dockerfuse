@@ -9,7 +9,6 @@ import (
 
 	"dockerfuse/pkg/rpc_common"
 
-	"github.com/hanwen/go-fuse/fuse"
 	csys "github.com/lalkh/containerd/sys"
 )
 
@@ -305,15 +304,15 @@ func (fso *DockerFuseFSOps) SetAttr(request rpc_common.SetAttrRequest, reply *rp
 	log.Printf("SetAttr called: %v", request)
 
 	// Set Mode
-	if m, ok := request.AttrIn.GetMode(); ok {
-		if err := os.Chmod(request.FullPath, os.FileMode(m)); err != nil {
+	if m, ok := request.GetMode(); ok {
+		if err := dfFS.Chmod(request.FullPath, os.FileMode(m)); err != nil {
 			return rpc_common.ErrnoToRPCErrorString(err)
 		}
 	}
 
 	// Set Owner/Group
-	uid, uok := request.AttrIn.GetUID()
-	gid, gok := request.AttrIn.GetGID()
+	uid, uok := request.GetUid()
+	gid, gok := request.GetGid()
 	if uok || gok {
 		suid := -1
 		sgid := -1
@@ -323,35 +322,35 @@ func (fso *DockerFuseFSOps) SetAttr(request rpc_common.SetAttrRequest, reply *rp
 		if gok {
 			sgid = int(gid)
 		}
-		if err := os.Chown(request.FullPath, suid, sgid); err != nil {
+		if err := dfFS.Chown(request.FullPath, suid, sgid); err != nil {
 			return rpc_common.ErrnoToRPCErrorString(err)
 		}
 	}
 
 	// Set A/M-Time
-	mtime, mok := request.AttrIn.GetMTime()
-	atime, aok := request.AttrIn.GetATime()
+	atime, aok := request.GetATime()
+	mtime, mok := request.GetMTime()
 	if mok || aok {
-		ap := &atime
-		mp := &mtime
-		if !aok {
-			ap = nil
-		}
-		if !mok {
-			mp = nil
-		}
 		var ts [2]syscall.Timespec
-		ts[0] = fuse.UtimeToTimespec(ap)
-		ts[1] = fuse.UtimeToTimespec(mp)
+		if aok {
+			ts[0] = syscall.NsecToTimespec(atime.UnixNano())
+		} else {
+			ts[0].Nsec = rpc_common.UTIME_OMIT
+		}
+		if mok {
+			ts[1] = syscall.NsecToTimespec(mtime.UnixNano())
+		} else {
+			ts[1].Nsec = rpc_common.UTIME_OMIT
+		}
 
-		if err := syscall.UtimesNano(request.FullPath, ts[:]); err != nil {
+		if err := dfFS.UtimesNano(request.FullPath, ts[:]); err != nil {
 			return rpc_common.ErrnoToRPCErrorString(err)
 		}
 	}
 
 	// Set size
-	if sz, ok := request.AttrIn.GetSize(); ok {
-		if err := os.Truncate(request.FullPath, int64(sz)); err != nil {
+	if sz, ok := request.GetSize(); ok {
+		if err := dfFS.Truncate(request.FullPath, int64(sz)); err != nil {
 			return rpc_common.ErrnoToRPCErrorString(err)
 		}
 	}

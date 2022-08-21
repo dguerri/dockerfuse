@@ -128,8 +128,68 @@ type SymlinkRequest struct {
 }
 type SymlinkReply struct{}
 
+const ( // bitmap for SetAttrRequest.ValidAttrs
+	SATTR_ATIME = (1 << 0)
+	SATTR_GID   = (1 << 1)
+	SATTR_MODE  = (1 << 2)
+	SATTR_MTIME = (1 << 3)
+	SATTR_SIZE  = (1 << 4)
+	SATTR_UID   = (1 << 5)
+)
+const UTIME_OMIT = ((1 << 30) - 2)
+
 type SetAttrRequest struct {
-	FullPath string
-	AttrIn   fuse.SetAttrIn
+	FullPath   string
+	ValidAttrs uint32 // See SATTR_* bitmap
+	ATime      time.Time
+	MTime      time.Time
+	Uid        uint32
+	Gid        uint32
+	Mode       uint32
+	Size       uint64
 }
 type SetAttrReply StatReply
+
+func (r *SetAttrRequest) GetMode() (m uint32, ok bool) {
+	if r.ValidAttrs&SATTR_MODE == SATTR_MODE {
+		return r.Mode, true
+	}
+	return 0, false
+}
+func (r *SetAttrRequest) GetUid() (u uint32, ok bool) {
+	if r.ValidAttrs&SATTR_UID == SATTR_UID {
+		return r.Uid, true
+	}
+	return 0, false
+}
+func (r *SetAttrRequest) GetGid() (g uint32, ok bool) {
+	if r.ValidAttrs&SATTR_GID == SATTR_GID {
+		return r.Gid, true
+	}
+	return 0, false
+}
+func (r *SetAttrRequest) GetATime() (m time.Time, ok bool) {
+	if r.ValidAttrs&SATTR_ATIME == SATTR_ATIME {
+		return r.ATime, true
+	}
+	return time.Time{}, false
+}
+func (r *SetAttrRequest) GetMTime() (m time.Time, ok bool) {
+	if r.ValidAttrs&SATTR_MTIME == SATTR_MTIME {
+		return r.MTime, true
+	}
+	return time.Time{}, false
+}
+func (r *SetAttrRequest) GetSize() (m uint64, ok bool) {
+	if r.ValidAttrs&SATTR_SIZE == SATTR_SIZE {
+		return r.Size, true
+	}
+	return 0, false
+}
+
+func (r *SetAttrRequest) SetMode(m uint32)     { r.Mode = m; r.ValidAttrs |= SATTR_MODE }
+func (r *SetAttrRequest) SetUid(u uint32)      { r.Uid = u; r.ValidAttrs |= SATTR_UID }
+func (r *SetAttrRequest) SetGid(g uint32)      { r.Gid = g; r.ValidAttrs |= SATTR_GID }
+func (r *SetAttrRequest) SetATime(a time.Time) { r.ATime = a; r.ValidAttrs |= SATTR_ATIME }
+func (r *SetAttrRequest) SetMTime(m time.Time) { r.MTime = m; r.ValidAttrs |= SATTR_MTIME }
+func (r *SetAttrRequest) SetSize(s uint64)     { r.Size = s; r.ValidAttrs |= SATTR_SIZE }

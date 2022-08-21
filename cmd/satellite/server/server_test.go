@@ -42,6 +42,13 @@ func (o *mockFS) Mkdir(n string, p os.FileMode) error { args := o.Called(n); ret
 func (o *mockFS) Rename(a, b string) error            { args := o.Called(a, b); return args.Error(0) }
 func (o *mockFS) Link(a, b string) error              { args := o.Called(a, b); return args.Error(0) }
 func (o *mockFS) Symlink(a, b string) error           { args := o.Called(a, b); return args.Error(0) }
+func (o *mockFS) Chmod(n string, m os.FileMode) error { args := o.Called(n, m); return args.Error(0) }
+func (o *mockFS) Chown(n string, u, g int) error      { args := o.Called(n, u, g); return args.Error(0) }
+func (o *mockFS) Truncate(n string, s int64) error    { args := o.Called(n, s); return args.Error(0) }
+func (o *mockFS) UtimesNano(p string, t []syscall.Timespec) error {
+	args := o.Called(p, t)
+	return args.Error(0)
+}
 
 // mockFileInfo implements mock os.FileInfo for testing
 type mockFileInfo struct{ mock.Mock }

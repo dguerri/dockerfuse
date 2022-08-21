@@ -431,9 +431,31 @@ func (d *FuseDockerClient) symlink(ctx context.Context, oldFullPath string, newF
 }
 
 func (d *FuseDockerClient) setAttr(ctx context.Context, fullPath string, in *fuse.SetAttrIn, out *StatAttr) (syserr syscall.Errno) {
-	var reply rpc_common.SetAttrReply
+	var (
+		request rpc_common.SetAttrRequest
+		reply   rpc_common.SetAttrReply
+	)
 
-	request := rpc_common.SetAttrRequest{FullPath: fullPath, AttrIn: *in}
+	request = rpc_common.SetAttrRequest{FullPath: fullPath}
+	if atime, ok := in.GetATime(); ok {
+		request.SetATime(atime)
+	}
+	if mtime, ok := in.GetMTime(); ok {
+		request.SetMTime(mtime)
+	}
+	if uid, ok := in.GetUID(); ok {
+		request.SetUid(uid)
+	}
+	if gid, ok := in.GetGID(); ok {
+		request.SetGid(gid)
+	}
+	if mode, ok := in.GetMode(); ok {
+		request.SetMode(mode)
+	}
+	if size, ok := in.GetSize(); ok {
+		request.SetSize(size)
+	}
+
 	err := d.rpcClient.Call("DockerFuseFSOps.SetAttr", request, &reply)
 	if err != nil {
 		return rpc_common.RPCErrorStringTOErrno(err)
