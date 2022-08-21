@@ -98,7 +98,6 @@ func (f mockFile) Sync() error { a := f.Called(); return a.Error(0) }
 
 func TestStat(t *testing.T) {
 	// *** Setup
-	dfFSOps := NewDockerFuseFSOps()
 	var (
 		mFS   mockFS
 		mFI   mockFileInfo
@@ -107,6 +106,7 @@ func TestStat(t *testing.T) {
 		err   error
 	)
 	dfFS = &mFS // Set mock filesystem
+	dfFSOps := NewDockerFuseFSOps()
 
 	// *** Testing error on Lstat
 	mFS = mockFS{}
@@ -125,6 +125,7 @@ func TestStat(t *testing.T) {
 
 	// *** Testing happy path on regular file
 	mFS = mockFS{}
+	dfFSOps.fds = map[uintptr]file{}
 	mFI = mockFileInfo{}
 	mFI.On("Sys").Return(&syscall.Stat_t{
 		Mode:    0760,
@@ -157,8 +158,44 @@ func TestStat(t *testing.T) {
 		LinkTarget: "",
 	}, reply)
 
+	// *** Testing happy path on regular file, error on Readlink
+	mFS = mockFS{}
+	dfFSOps.fds = map[uintptr]file{}
+	mFI = mockFileInfo{}
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0760,
+		Nlink:   1,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Blocks:  29,
+		Blksize: 1024,
+		Size:    29696,
+	})
+	mFS.On("Lstat", "/test/reg").Return(mFI, nil)
+	mFS.On("Readlink", "/test/reg").Return("", syscall.EINVAL)
+
+	reply = rpc_common.StatReply{}
+	err = dfFSOps.Stat(rpc_common.StatRequest{FullPath: "/test/reg", UseFD: false}, &reply)
+
+	assert.NoError(t, err)
+	mFI.AssertExpectations(t)
+	mFS.AssertExpectations(t)
+	assert.Equal(t, rpc_common.StatReply{
+		Mode:       0760,
+		Nlink:      1,
+		Ino:        29,
+		Uid:        1,
+		Gid:        2,
+		Size:       29696,
+		Blocks:     29,
+		Blksize:    1024,
+		LinkTarget: "",
+	}, reply)
+
 	// *** Testing happy path on link
 	mFS = mockFS{}
+	dfFSOps.fds = map[uintptr]file{}
 	mFI = mockFileInfo{}
 	reply = rpc_common.StatReply{}
 	mFI.On("Sys").Return(&syscall.Stat_t{
@@ -193,6 +230,7 @@ func TestStat(t *testing.T) {
 
 	// *** Testing happy path on regular file, with FD
 	mFS = mockFS{}
+	dfFSOps.fds = map[uintptr]file{}
 	mFI = mockFileInfo{}
 	mFile = mockFile{}
 	reply = rpc_common.StatReply{}
@@ -216,7 +254,6 @@ func TestStat(t *testing.T) {
 	assert.NoError(t, err)
 	mFI.AssertExpectations(t)
 	mFile.AssertExpectations(t)
-
 	mFS.AssertNotCalled(t, "Stat", mock.Anything)
 	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
 	assert.Equal(t, rpc_common.StatReply{
@@ -230,6 +267,37 @@ func TestStat(t *testing.T) {
 		Blksize:    1024,
 		LinkTarget: "",
 	}, reply)
+
+	// *** Testing error on retrieving FD
+	mFS = mockFS{}
+	dfFSOps.fds = map[uintptr]file{}
+	mFI = mockFileInfo{}
+	mFile = mockFile{}
+	reply = rpc_common.StatReply{}
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0760,
+		Nlink:   1,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Blocks:  29,
+		Blksize: 1024,
+		Size:    29696,
+	})
+	mFile.On("Stat").Return(mFI, nil)
+	mFS.On("Lstat", "").Return(mFI, nil)
+	mFS.On("Readlink", "").Return("", nil)
+
+	err = dfFSOps.Stat(rpc_common.StatRequest{FullPath: "", FD: 29, UseFD: true}, &reply)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+	mFI.AssertNotCalled(t, "Sys", mock.Anything)
+	mFile.AssertNotCalled(t, "Stat", mock.Anything)
+	mFS.AssertNotCalled(t, "Stat", mock.Anything)
+	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
+	assert.Equal(t, rpc_common.StatReply{}, reply)
 }
 
 func TestReadDir(t *testing.T) {
@@ -540,6 +608,42 @@ func TestOpen(t *testing.T) {
 			LinkTarget: "",
 		},
 	}, reply)
+
+	// *** Testing Open on a regular existing file error on fd.Stat()
+	mFS = mockFS{}
+	mFile = mockFile{}
+	mFI = mockFileInfo{}
+	dfFSOps.fds = map[uintptr]file{}
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0660,
+		Nlink:   2,
+		Ino:     29,
+		Uid:     1,
+		Gid:     2,
+		Size:    3072,
+		Blocks:  3,
+		Blksize: 1024,
+	})
+	mFile.On("Fd").Return(uintptr(29))
+	mFile.On("Stat").Return(mFI, syscall.EINVAL)
+	mFS.On("OpenFile", "/test/openfile_reg", syscall.O_RDWR, fs.FileMode(0640)).Return(mFile, nil)
+	mFS.On("Readlink", "/test/openfile_reg").Return("", nil)
+
+	reply = rpc_common.OpenReply{}
+	err = dfFSOps.Open(rpc_common.OpenRequest{
+		FullPath: "/test/openfile_reg",
+		SAFlags:  rpc_common.SystemToSAFlags(syscall.O_RDWR),
+		Mode:     fs.FileMode(0640),
+	}, &reply)
+
+	assert.Equal(t, rpc_common.OpenReply{}, reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+	mFile.AssertExpectations(t)
+	mFS.AssertCalled(t, "OpenFile", "/test/openfile_reg", syscall.O_RDWR, fs.FileMode(0640))
+	mFS.AssertNotCalled(t, "ReadLink", mock.Anything)
+	mFI.AssertNotCalled(t, "Sys", mock.Anything)
 }
 
 func TestClose(t *testing.T) {
@@ -1431,4 +1535,71 @@ func TestSetAttr(t *testing.T) {
 	mFS.AssertCalled(t, "Truncate", "/test/happy_path", int64(29696))
 	mFS.AssertCalled(t, "Lstat", "/test/happy_path")
 	mFS.AssertCalled(t, "Readlink", "/test/happy_path")
+
+	// *** Testing error on fso.Stat()
+	mFS = mockFS{}
+	mFI = mockFileInfo{}
+	request = rpc_common.SetAttrRequest{FullPath: "/test/error_on_stat"}
+	request.SetMode(0666)
+	request.SetUid(0)
+	request.SetGid(1)
+	request.SetATime(time.UnixMicro(1661073465))
+	request.SetMTime(time.UnixMicro(1661073466))
+	request.SetSize(29696)
+	mFS.On("Chmod", "/test/error_on_stat", os.FileMode(0666)).Return(nil)
+	mFS.On("Chown", "/test/error_on_stat", 0, 1).Return(nil)
+	mFS.On("UtimesNano", "/test/error_on_stat", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	}).Return(nil)
+	mFS.On("Truncate", "/test/error_on_stat", int64(29696)).Return(nil)
+	mFI.On("Sys").Return(&syscall.Stat_t{
+		Mode:    0666,
+		Nlink:   1,
+		Ino:     2929,
+		Uid:     0,
+		Gid:     1,
+		Blocks:  29,
+		Blksize: 1024,
+		Size:    29696,
+	})
+	mFS.On("Lstat", "/test/error_on_stat").Return(mFI, syscall.EINVAL)
+	mFS.On("Readlink", "/test/error_on_stat").Return("", nil)
+
+	reply = rpc_common.SetAttrReply{}
+	err = dfFSOps.SetAttr(request, &reply)
+
+	assert.Equal(t, rpc_common.SetAttrReply{}, reply)
+	if assert.Error(t, err) {
+		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
+	}
+	mFI.AssertNotCalled(t, "Sys", mock.Anything)
+	mFS.AssertCalled(t, "Chmod", "/test/error_on_stat", os.FileMode(0666))
+	mFS.AssertCalled(t, "Chown", "/test/error_on_stat", 0, 1)
+	mFS.AssertCalled(t, "UtimesNano", "/test/error_on_stat", []syscall.Timespec{
+		syscall.NsecToTimespec(time.UnixMicro(1661073465).UnixNano()),
+		syscall.NsecToTimespec(time.UnixMicro(1661073466).UnixNano()),
+	})
+	mFS.AssertCalled(t, "Truncate", "/test/error_on_stat", int64(29696))
+	mFS.AssertCalled(t, "Lstat", "/test/error_on_stat")
+	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
+}
+
+func TestCloseAllFDs(t *testing.T) {
+	dfFSOps := NewDockerFuseFSOps()
+
+	f1 := mockFile{}
+	f1.On("Close").Return(nil)
+	f2 := mockFile{}
+	f2.On("Close").Return(nil)
+	f3 := mockFile{}
+	f3.On("Close").Return(nil)
+	dfFSOps.fds = map[uintptr]file{29: &f1, 30: &f2, 31: &f3}
+
+	dfFSOps.CloseAllFDs()
+
+	f1.AssertExpectations(t)
+	f2.AssertExpectations(t)
+	f3.AssertExpectations(t)
+	assert.Equal(t, 0, len(dfFSOps.fds))
 }
