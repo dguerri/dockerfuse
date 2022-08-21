@@ -22,7 +22,7 @@ type dockerClient interface {
 	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
 }
 
-// rpcCL implements RPC client factory
+// dockerClientFactory implements dockerClientFactoryInterface providing real client for Docker API
 type dockerClientFactory struct{}
 
 func (*dockerClientFactory) NewClientWithOpts(ops ...client.Opt) (dockerClient, error) {

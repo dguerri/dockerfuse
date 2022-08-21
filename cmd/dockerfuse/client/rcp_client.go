@@ -16,7 +16,7 @@ type rpcClient interface {
 	Close() error
 }
 
-// rpcCL implements RPC client factory
+// rpcCL implements rpcClientFactoryInterface providing real RPC communication
 type rpcClientFactory struct{}
 
 func (*rpcClientFactory) NewClient(conn io.ReadWriteCloser) rpcClient { return rpc.NewClient(conn) }

@@ -98,7 +98,7 @@ func main() {
 		log.Fatalf("invalid gid (%s): %s", user.Gid, err)
 	}
 
-	fuseDockerClient, err := client.NewFuseDockerClient(containerID)
+	fuseDockerClient, err := client.NewDockerFuseClient(containerID)
 	if err != nil {
 		log.Panicf("error initiazializing docker client: %s", err)
 	} else {

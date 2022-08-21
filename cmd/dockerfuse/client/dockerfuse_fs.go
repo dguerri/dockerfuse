@@ -36,10 +36,10 @@ type Node struct {
 
 	Data             []byte
 	fullPath         string
-	fuseDockerClient FuseDockerClientInterface
+	fuseDockerClient DockerFuseClientInterface
 }
 
-func NewNode(fuseDockerClient FuseDockerClientInterface, fullPath string, linkTarget string) *Node {
+func NewNode(fuseDockerClient DockerFuseClientInterface, fullPath string, linkTarget string) *Node {
 	return &Node{
 		Data:             []byte(linkTarget),
 		fullPath:         fullPath,

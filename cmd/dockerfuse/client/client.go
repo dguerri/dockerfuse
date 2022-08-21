@@ -29,7 +29,7 @@ type StatAttr struct {
 	FuseAttr   fuse.Attr
 	LinkTarget string
 }
-type FuseDockerClientInterface interface {
+type DockerFuseClientInterface interface {
 	isConnected() bool
 	disconnect()
 	connectSatellite(ctx context.Context) (err error)
@@ -53,20 +53,20 @@ type FuseDockerClientInterface interface {
 	write(ctx context.Context, fh fusefs.FileHandle, offset int64, data []byte) (n int, syserr syscall.Errno)
 }
 
-type FuseDockerClient struct {
+type DockerFuseClient struct {
 	dockerClient            dockerClient
 	rpcClient               rpcClient
 	containerID             string
 	satelliteFullRemotePath string
 }
 
-func NewFuseDockerClient(containerID string) (*FuseDockerClient, error) {
+func NewDockerFuseClient(containerID string) (*DockerFuseClient, error) {
 	docker, err := dockerCF.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, err
 	}
 
-	fdc := &FuseDockerClient{
+	fdc := &DockerFuseClient{
 		dockerClient: docker,
 		containerID:  containerID,
 	}
@@ -83,18 +83,18 @@ func NewFuseDockerClient(containerID string) (*FuseDockerClient, error) {
 	return fdc, nil
 }
 
-func (d *FuseDockerClient) isConnected() bool {
+func (d *DockerFuseClient) isConnected() bool {
 	return d.rpcClient != nil
 }
 
-func (d *FuseDockerClient) disconnect() {
+func (d *DockerFuseClient) disconnect() {
 	if d.rpcClient != nil {
 		d.rpcClient.Close()
 		d.rpcClient = nil
 	}
 }
 
-func (d *FuseDockerClient) uploadSatellite(ctx context.Context) (err error) {
+func (d *DockerFuseClient) uploadSatellite(ctx context.Context) (err error) {
 	containerInspect, err := d.dockerClient.ContainerInspect(ctx, d.containerID)
 	if err != nil {
 		return err
@@ -112,12 +112,12 @@ func (d *FuseDockerClient) uploadSatellite(ctx context.Context) (err error) {
 	satelliteBinName := fmt.Sprintf("%s_%s", satelliteBinPrefix, imageInspect.Architecture)
 	d.satelliteFullRemotePath = filepath.Clean(filepath.Join(satelliteExecPath, satelliteBinName))
 
-	ex, err := os.Executable()
+	ex, err := dfFS.Executable()
 	if err != nil {
 		return err
 	}
 	satelliteFullLocalPath := filepath.Clean(filepath.Join(filepath.Dir(ex), satelliteBinName))
-	satelliteBin, err := os.ReadFile(satelliteFullLocalPath)
+	satelliteBin, err := dfFS.ReadFile(satelliteFullLocalPath)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (d *FuseDockerClient) uploadSatellite(ctx context.Context) (err error) {
 	return
 }
 
-func (d *FuseDockerClient) connectSatellite(ctx context.Context) (err error) {
+func (d *DockerFuseClient) connectSatellite(ctx context.Context) (err error) {
 	if d.rpcClient != nil {
 		// Reconnect
 		d.disconnect()
@@ -171,7 +171,7 @@ func (d *FuseDockerClient) connectSatellite(ctx context.Context) (err error) {
 	return
 }
 
-func (d *FuseDockerClient) stat(ctx context.Context, fullPath string, fh fusefs.FileHandle, attr *StatAttr) (syserr syscall.Errno) {
+func (d *DockerFuseClient) stat(ctx context.Context, fullPath string, fh fusefs.FileHandle, attr *StatAttr) (syserr syscall.Errno) {
 	var (
 		reply   rpc_common.StatReply
 		request rpc_common.StatRequest
@@ -203,7 +203,7 @@ func (d *FuseDockerClient) stat(ctx context.Context, fullPath string, fh fusefs.
 	return
 }
 
-func (d *FuseDockerClient) create(ctx context.Context, fullPath string, flags int, mode fs.FileMode, attr *StatAttr) (fh fusefs.FileHandle, syserr syscall.Errno) {
+func (d *DockerFuseClient) create(ctx context.Context, fullPath string, flags int, mode fs.FileMode, attr *StatAttr) (fh fusefs.FileHandle, syserr syscall.Errno) {
 	var reply rpc_common.OpenReply
 
 	request := rpc_common.OpenRequest{
@@ -232,7 +232,7 @@ func (d *FuseDockerClient) create(ctx context.Context, fullPath string, flags in
 	return
 }
 
-func (d *FuseDockerClient) readDir(ctx context.Context, fullPath string) (ds fusefs.DirStream, syserr syscall.Errno) {
+func (d *DockerFuseClient) readDir(ctx context.Context, fullPath string) (ds fusefs.DirStream, syserr syscall.Errno) {
 	var reply rpc_common.ReadDirReply
 
 	err := d.rpcClient.Call("DockerFuseFSOps.ReadDir", rpc_common.StatRequest{FullPath: fullPath}, &reply)
@@ -256,7 +256,7 @@ func (d *FuseDockerClient) readDir(ctx context.Context, fullPath string) (ds fus
 	return
 }
 
-func (d *FuseDockerClient) open(ctx context.Context, fullPath string, flags int, mode_in fs.FileMode) (fh fusefs.FileHandle, mode fs.FileMode, syserr syscall.Errno) {
+func (d *DockerFuseClient) open(ctx context.Context, fullPath string, flags int, mode_in fs.FileMode) (fh fusefs.FileHandle, mode fs.FileMode, syserr syscall.Errno) {
 	var reply rpc_common.OpenReply
 
 	request := rpc_common.OpenRequest{
@@ -275,7 +275,7 @@ func (d *FuseDockerClient) open(ctx context.Context, fullPath string, flags int,
 	return
 }
 
-func (d *FuseDockerClient) close(ctx context.Context, fh fusefs.FileHandle) (syserr syscall.Errno) {
+func (d *DockerFuseClient) close(ctx context.Context, fh fusefs.FileHandle) (syserr syscall.Errno) {
 	var reply rpc_common.CloseReply
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Close", rpc_common.CloseRequest{FD: fh.(uintptr)}, &reply)
@@ -287,7 +287,7 @@ func (d *FuseDockerClient) close(ctx context.Context, fh fusefs.FileHandle) (sys
 	return
 }
 
-func (d *FuseDockerClient) read(ctx context.Context, fh fusefs.FileHandle, offset int64, n int) (data []byte, syserr syscall.Errno) {
+func (d *DockerFuseClient) read(ctx context.Context, fh fusefs.FileHandle, offset int64, n int) (data []byte, syserr syscall.Errno) {
 	var reply rpc_common.ReadReply
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Read", rpc_common.ReadRequest{FD: fh.(uintptr), Offset: offset, Num: n}, &reply)
@@ -304,7 +304,7 @@ func (d *FuseDockerClient) read(ctx context.Context, fh fusefs.FileHandle, offse
 	return data, 0
 }
 
-func (d *FuseDockerClient) seek(ctx context.Context, fh fusefs.FileHandle, offset int64, whence int) (n int64, syserr syscall.Errno) {
+func (d *DockerFuseClient) seek(ctx context.Context, fh fusefs.FileHandle, offset int64, whence int) (n int64, syserr syscall.Errno) {
 	var reply rpc_common.SeekReply
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Seek", rpc_common.SeekRequest{FD: fh.(uintptr), Offset: offset, Whence: whence}, &reply)
@@ -317,7 +317,7 @@ func (d *FuseDockerClient) seek(ctx context.Context, fh fusefs.FileHandle, offse
 	return
 }
 
-func (d *FuseDockerClient) write(ctx context.Context, fh fusefs.FileHandle, offset int64, data []byte) (n int, syserr syscall.Errno) {
+func (d *DockerFuseClient) write(ctx context.Context, fh fusefs.FileHandle, offset int64, data []byte) (n int, syserr syscall.Errno) {
 	var reply rpc_common.WriteReply
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Write", rpc_common.WriteRequest{FD: fh.(uintptr), Offset: offset, Data: data}, &reply)
@@ -330,7 +330,7 @@ func (d *FuseDockerClient) write(ctx context.Context, fh fusefs.FileHandle, offs
 	return
 }
 
-func (d *FuseDockerClient) unlink(ctx context.Context, fullPath string) (syserr syscall.Errno) {
+func (d *DockerFuseClient) unlink(ctx context.Context, fullPath string) (syserr syscall.Errno) {
 	var reply rpc_common.UnlinkReply
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Unlink", rpc_common.UnlinkRequest{FullPath: fullPath}, &reply)
@@ -340,7 +340,7 @@ func (d *FuseDockerClient) unlink(ctx context.Context, fullPath string) (syserr 
 	return
 }
 
-func (d *FuseDockerClient) fsync(ctx context.Context, fh fusefs.FileHandle, flags uint32) (syserr syscall.Errno) {
+func (d *DockerFuseClient) fsync(ctx context.Context, fh fusefs.FileHandle, flags uint32) (syserr syscall.Errno) {
 	var reply rpc_common.FsyncReply
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Fsync", rpc_common.FsyncRequest{FD: fh.(uintptr), Flags: flags}, &reply)
@@ -350,7 +350,7 @@ func (d *FuseDockerClient) fsync(ctx context.Context, fh fusefs.FileHandle, flag
 	return
 }
 
-func (d *FuseDockerClient) mkdir(ctx context.Context, fullPath string, mode fs.FileMode, attr *StatAttr) (syserr syscall.Errno) {
+func (d *DockerFuseClient) mkdir(ctx context.Context, fullPath string, mode fs.FileMode, attr *StatAttr) (syserr syscall.Errno) {
 	var reply rpc_common.MkdirReply
 
 	request := rpc_common.MkdirRequest{
@@ -375,7 +375,7 @@ func (d *FuseDockerClient) mkdir(ctx context.Context, fullPath string, mode fs.F
 	return
 }
 
-func (d *FuseDockerClient) rmdir(ctx context.Context, fullPath string) (syserr syscall.Errno) {
+func (d *DockerFuseClient) rmdir(ctx context.Context, fullPath string) (syserr syscall.Errno) {
 	var reply rpc_common.RmdirReply
 
 	request := rpc_common.RmdirRequest{FullPath: fullPath}
@@ -386,7 +386,7 @@ func (d *FuseDockerClient) rmdir(ctx context.Context, fullPath string) (syserr s
 	return
 }
 
-func (d *FuseDockerClient) rename(ctx context.Context, fullPath string, fullNewPath string, flags uint32) (syserr syscall.Errno) {
+func (d *DockerFuseClient) rename(ctx context.Context, fullPath string, fullNewPath string, flags uint32) (syserr syscall.Errno) {
 	var reply rpc_common.RenameReply
 
 	request := rpc_common.RenameRequest{FullPath: fullPath, FullNewPath: fullNewPath, Flags: flags}
@@ -397,7 +397,7 @@ func (d *FuseDockerClient) rename(ctx context.Context, fullPath string, fullNewP
 	return
 }
 
-func (d *FuseDockerClient) readlink(ctx context.Context, fullPath string) (linkTarget []byte, syserr syscall.Errno) {
+func (d *DockerFuseClient) readlink(ctx context.Context, fullPath string) (linkTarget []byte, syserr syscall.Errno) {
 	var reply rpc_common.ReadlinkReply
 
 	request := rpc_common.ReadlinkRequest{FullPath: fullPath}
@@ -408,7 +408,7 @@ func (d *FuseDockerClient) readlink(ctx context.Context, fullPath string) (linkT
 	return []byte(reply.LinkTarget), 0
 }
 
-func (d *FuseDockerClient) link(ctx context.Context, oldFullPath string, newFullPath string) (syserr syscall.Errno) {
+func (d *DockerFuseClient) link(ctx context.Context, oldFullPath string, newFullPath string) (syserr syscall.Errno) {
 	var reply rpc_common.LinkReply
 
 	request := rpc_common.LinkRequest{OldFullPath: oldFullPath, NewFullPath: newFullPath}
@@ -419,7 +419,7 @@ func (d *FuseDockerClient) link(ctx context.Context, oldFullPath string, newFull
 	return 0
 }
 
-func (d *FuseDockerClient) symlink(ctx context.Context, oldFullPath string, newFullPath string) (syserr syscall.Errno) {
+func (d *DockerFuseClient) symlink(ctx context.Context, oldFullPath string, newFullPath string) (syserr syscall.Errno) {
 	var reply rpc_common.SymlinkReply
 
 	request := rpc_common.SymlinkRequest{OldFullPath: oldFullPath, NewFullPath: newFullPath}
@@ -430,7 +430,7 @@ func (d *FuseDockerClient) symlink(ctx context.Context, oldFullPath string, newF
 	return 0
 }
 
-func (d *FuseDockerClient) setAttr(ctx context.Context, fullPath string, in *fuse.SetAttrIn, out *StatAttr) (syserr syscall.Errno) {
+func (d *DockerFuseClient) setAttr(ctx context.Context, fullPath string, in *fuse.SetAttrIn, out *StatAttr) (syserr syscall.Errno) {
 	var (
 		request rpc_common.SetAttrRequest
 		reply   rpc_common.SetAttrReply
