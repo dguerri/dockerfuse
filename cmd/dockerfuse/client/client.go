@@ -30,7 +30,6 @@ type StatAttr struct {
 	LinkTarget string
 }
 type DockerFuseClientInterface interface {
-	isConnected() bool
 	disconnect()
 	connectSatellite(ctx context.Context) (err error)
 
@@ -81,10 +80,6 @@ func NewDockerFuseClient(containerID string) (*DockerFuseClient, error) {
 		return nil, fmt.Errorf("error connecting to docker-fuse satellite: %s", err)
 	}
 	return fdc, nil
-}
-
-func (d *DockerFuseClient) isConnected() bool {
-	return d.rpcClient != nil
 }
 
 func (d *DockerFuseClient) disconnect() {

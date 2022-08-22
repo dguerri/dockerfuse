@@ -77,29 +77,35 @@ func (dc *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID str
 func TestNewFuseDockerClient(t *testing.T) {
 	// *** Setup
 	var (
-		mDC    mockDockerClient
-		mDCF   mockDockerClientFactory
-		mFS    mockFS
-		mRPCC  mockRPCClient
-		mRPCCF mockRPCClientFactory
+		mDC                                                               mockDockerClient
+		mDCF                                                              mockDockerClientFactory
+		mFS                                                               mockFS
+		mRPCC                                                             mockRPCClient
+		mRPCCF                                                            mockRPCClientFactory
+		satelliteBinName, satelliteFullLocalPath, satelliteFullRemotePath string
+		config                                                            types.ExecConfig
+		err                                                               error
 	)
 	rpcCF = &mRPCCF  // Set mock RPC client factory
 	dockerCF = &mDCF // Set mock RPC client factory
 	dfFS = &mFS      // Set mock Filesystem
 
-	mFS = mockFS{}
-	satelliteBinName := fmt.Sprintf("%s_%s", satelliteBinPrefix, "arm64")
-	satelliteFullLocalPath := filepath.Join("/test/pos/", satelliteBinName)
-	satelliteFullRemotePath := filepath.Join(satelliteExecPath, satelliteBinName)
-	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
-	mFS.On("Executable").Return("/test/pos/executable", nil)
+	satelliteBinName = fmt.Sprintf("%s_%s", satelliteBinPrefix, "arm64")
+	satelliteFullLocalPath = filepath.Join("/test/pos/", satelliteBinName)
+	satelliteFullRemotePath = filepath.Join(satelliteExecPath, satelliteBinName)
 
+	// *** Test happy path
+	mFS = mockFS{}
 	mRPCC = mockRPCClient{}
 	mRPCCF = mockRPCClientFactory{}
-	mRPCCF.On("NewClient", nil).Return(&mRPCC)
-
 	mDC = mockDockerClient{}
-	config := types.ExecConfig{
+	mDCF = mockDockerClientFactory{}
+
+	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
+	mFS.On("Executable").Return("/test/pos/executable", nil)
+	mRPCC.On("Close").Return(nil)
+	mRPCCF.On("NewClient", nil).Return(&mRPCC)
+	config = types.ExecConfig{
 		AttachStderr: false,
 		AttachStdout: true,
 		AttachStdin:  true,
@@ -117,15 +123,254 @@ func TestNewFuseDockerClient(t *testing.T) {
 	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
-
-	mDCF = mockDockerClientFactory{}
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
-	_, err := NewDockerFuseClient("test_container")
+	fdc, err := NewDockerFuseClient("test_container")
 
 	assert.NoError(t, err)
+	mRPCC.AssertNotCalled(t, "Close")
 	mDCF.AssertExpectations(t)
 	mDC.AssertExpectations(t)
 	mFS.AssertExpectations(t)
 	mRPCCF.AssertExpectations(t)
+
+	// Test reconnection
+	err = fdc.connectSatellite(context.Background())
+
+	assert.NoError(t, err)
+	mRPCC.AssertExpectations(t)
+
+	// *** Test error on NewClientWithOpts
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	newClientWithOptsError := fmt.Errorf("error on NewClientWithOpts")
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, newClientWithOptsError)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t, newClientWithOptsError, err)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on ContainerInspect
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	containerInspectError := fmt.Errorf("error on ContainerInspect")
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{}, containerInspectError)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error copying docker-fuse satellite to remote container: %s", containerInspectError.Error()),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on ContainerInspect
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	imageInspectWithRawError := fmt.Errorf("error on ImageInspectWithRaw")
+	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
+		types.ImageInspect{}, []byte{}, imageInspectWithRawError)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+	}, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error copying docker-fuse satellite to remote container: %s", imageInspectWithRawError.Error()),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on invalid architecture
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
+		types.ImageInspect{Architecture: "invalidarc64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+	}, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error copying docker-fuse satellite to remote container: unsupported architecture: invalidarc64 (use arm64 or amd64)"),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on os.Executable()
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	osExecutableError := fmt.Errorf("error on os.Executable()")
+	mFS.On("Executable").Return("/test/pos/executable", osExecutableError)
+	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
+		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+	}, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error copying docker-fuse satellite to remote container: %s", osExecutableError.Error()),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on os.ReadFile()
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	osReadFileError := fmt.Errorf("error on os.ReadFile()")
+	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte{}, osReadFileError)
+	mFS.On("Executable").Return("/test/pos/executable", nil)
+	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
+		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+	}, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error copying docker-fuse satellite to remote container: %s", osReadFileError.Error()),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on CopyToContainer
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	copyToContainerError := fmt.Errorf("error on CopyToContainer")
+	mDC.On("CopyToContainer", context.Background(), "test_container", satelliteExecPath,
+		mock.AnythingOfType("*bufio.Reader"), types.CopyToContainerOptions{}).Return(copyToContainerError)
+	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
+	mFS.On("Executable").Return("/test/pos/executable", nil)
+	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
+		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+	}, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error copying docker-fuse satellite to remote container: %s", copyToContainerError.Error()),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on ContainerExecCreate
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	containerExecCreateError := fmt.Errorf("error on ContainerExecCreate")
+	mDC.On("ContainerExecCreate", context.Background(), "test_container", config).Return(
+		types.IDResponse{}, containerExecCreateError)
+	mDC.On("CopyToContainer", context.Background(), "test_container", satelliteExecPath,
+		mock.AnythingOfType("*bufio.Reader"), types.CopyToContainerOptions{}).Return(nil)
+	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
+	mFS.On("Executable").Return("/test/pos/executable", nil)
+	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
+		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+	}, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error connecting to docker-fuse satellite: %s", containerExecCreateError.Error()),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
+	// *** Test error on ContainerExecAttach
+	mFS = mockFS{}
+	mRPCC = mockRPCClient{}
+	mRPCCF = mockRPCClientFactory{}
+	mDC = mockDockerClient{}
+	mDCF = mockDockerClientFactory{}
+
+	containerExecAttachError := fmt.Errorf("error on ContainerExecAttach")
+	mDC.On("ContainerExecAttach", context.Background(), "test_execid", types.ExecStartCheck{Tty: true}).Return(
+		types.HijackedResponse{}, containerExecAttachError)
+	mDC.On("ContainerExecCreate", context.Background(), "test_container", config).Return(
+		types.IDResponse{ID: "test_execid"}, nil)
+	mDC.On("CopyToContainer", context.Background(), "test_container", satelliteExecPath,
+		mock.AnythingOfType("*bufio.Reader"), types.CopyToContainerOptions{}).Return(nil)
+	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
+	mFS.On("Executable").Return("/test/pos/executable", nil)
+	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
+		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+	}, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
+
+	_, err = NewDockerFuseClient("test_container")
+
+	if assert.Error(t, err) {
+		assert.Equal(t,
+			fmt.Errorf("error connecting to docker-fuse satellite: %s", containerExecAttachError.Error()),
+			err,
+		)
+	}
+	mDCF.AssertExpectations(t)
+
 }
