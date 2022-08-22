@@ -29,17 +29,17 @@ type mockRPCClientFactory struct{ mock.Mock }
 
 func (m *mockRPCClientFactory) NewClient(conn io.ReadWriteCloser) rpcClient {
 	args := m.Called(conn)
-	return args.Get(0).(mockRPCClient)
+	return args.Get(0).(*mockRPCClient)
 }
 
 type mockRPCClient struct{ mock.Mock }
 
-func (o mockRPCClient) Call(sm string, a any, r any) error {
+func (o *mockRPCClient) Call(sm string, a any, r any) error {
 	args := o.Called(sm, a, r)
 	return args.Error(0)
 }
 
-func (o mockRPCClient) Close() error {
+func (o *mockRPCClient) Close() error {
 	args := o.Called()
 	return args.Error(0)
 }
@@ -48,28 +48,28 @@ type mockDockerClientFactory struct{ mock.Mock }
 
 func (m *mockDockerClientFactory) NewClientWithOpts(ops ...client.Opt) (dockerClient, error) {
 	args := m.Called(ops)
-	return args.Get(0).(mockDockerClient), args.Error(1)
+	return args.Get(0).(*mockDockerClient), args.Error(1)
 }
 
 type mockDockerClient struct{ mock.Mock }
 
-func (dc mockDockerClient) ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error) {
+func (dc *mockDockerClient) ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error) {
 	args := dc.Called(ctx, execID, config)
 	return args.Get(0).(types.HijackedResponse), args.Error(1)
 }
-func (dc mockDockerClient) ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error) {
+func (dc *mockDockerClient) ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error) {
 	args := dc.Called(ctx, container, config)
 	return args.Get(0).(types.IDResponse), args.Error(1)
 }
-func (dc mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+func (dc *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
 	args := dc.Called(ctx, containerID)
 	return args.Get(0).(types.ContainerJSON), args.Error(1)
 }
-func (dc mockDockerClient) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options types.CopyToContainerOptions) error {
+func (dc *mockDockerClient) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options types.CopyToContainerOptions) error {
 	args := dc.Called(ctx, containerID, dstPath, content, options)
 	return args.Error(0)
 }
-func (dc mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
+func (dc *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
 	args := dc.Called(ctx, imageID)
 	return args.Get(0).(types.ImageInspect), args.Get(1).([]byte), args.Error(2)
 }
@@ -96,7 +96,7 @@ func TestNewFuseDockerClient(t *testing.T) {
 
 	mRPCC = mockRPCClient{}
 	mRPCCF = mockRPCClientFactory{}
-	mRPCCF.On("NewClient", nil).Return(mRPCC)
+	mRPCCF.On("NewClient", nil).Return(&mRPCC)
 
 	mDC = mockDockerClient{}
 	config := types.ExecConfig{
@@ -119,7 +119,7 @@ func TestNewFuseDockerClient(t *testing.T) {
 	}, nil)
 
 	mDCF = mockDockerClientFactory{}
-	mDCF.On("NewClientWithOpts", mock.Anything).Return(mDC, nil)
+	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
 	_, err := NewDockerFuseClient("test_container")
 
