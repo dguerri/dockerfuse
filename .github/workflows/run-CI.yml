@@ -1,4 +1,4 @@
-name: "unit tests"
+name: "CI"
 
 on:
   workflow_dispatch:
@@ -19,26 +19,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-tests:
-    runs-on: ubuntu-latest
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        go: ["1.18.x", "1.19.x"]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: WillAbides/setup-go-faster@v1.7.0
         with:
-          go-version: "1.18.0"
-
+          go-version: ${{ matrix.go }}
       - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Build and Test
-        run: go test -v ./... -cover -coverprofile=coverage.out
-
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: Static code analysis
+        uses: dominikh/staticcheck-action@v1.2.0
+        with:
+          version: "2022.1.1"
+          install-go: false
+          cache-key: ${{ matrix.go }}
+      - name: Run Go vet
+        run: "go vet ./..."
+      - name: Make all
+        run: "make all"
+      - name: Unit tests
+        run: "go test ./... -cover -coverprofile=coverage.out"
       - name: Convert coverage to lcov
         uses: jandelgado/gcov2lcov-action@v1.0.0
         with:
           infile: coverage.out
           outfile: coverage.lcov
-
       - name: Coveralls
         uses: coverallsapp/github-action@master
         with:
