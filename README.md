@@ -1,6 +1,6 @@
 # DockerFuse: interact with filesystem of Docker containters, via FUSE
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![CI](https://github.com/dguerri/dockerfuse/actions/workflows/run-CI.yml/badge.svg)](https://github.com/dguerri/dockerfuse/actions/workflows/run-CI.yml) [![Coverage Status](https://coveralls.io/repos/github/dguerri/dockerfuse/badge.svg?branch=main)](https://coveralls.io/github/dguerri/dockerfuse?branch=main)
+[![license](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![go report card](https://goreportcard.com/badge/github.com/dguerri/dockerfuse)](https://goreportcard.com/report/github.com/dguerri/dockerfuse) [![CI](https://github.com/dguerri/dockerfuse/actions/workflows/run-CI.yml/badge.svg)](https://github.com/dguerri/dockerfuse/actions/workflows/run-CI.yml) [![coverage status](https://coveralls.io/repos/github/dguerri/dockerfuse/badge.svg?branch=main)](https://coveralls.io/github/dguerri/dockerfuse?branch=main)
 
 ***NOTE: this software is a WIP, use at your risk!***
 
