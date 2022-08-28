@@ -16,7 +16,7 @@ import (
 
 	daemon "github.com/sevlyar/go-daemon"
 
-	"dockerfuse/cmd/dockerfuse/client"
+	"github.com/dguerri/dockerfuse/cmd/dockerfuse/client"
 )
 
 const (

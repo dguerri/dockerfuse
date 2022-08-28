@@ -17,7 +17,7 @@ import (
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 
-	"dockerfuse/pkg/rpc_common"
+	"github.com/dguerri/dockerfuse/pkg/rpc_common"
 )
 
 const (

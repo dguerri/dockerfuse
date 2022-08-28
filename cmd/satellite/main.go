@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"dockerfuse/cmd/satellite/server"
+	"github.com/dguerri/dockerfuse/cmd/satellite/server"
 )
 
 // rwCloser just merges a ReadCloser and a WriteCloser into a ReadWriteCloser.

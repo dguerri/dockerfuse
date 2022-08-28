@@ -1,13 +1,14 @@
 package server
 
 import (
-	"dockerfuse/pkg/rpc_common"
 	"fmt"
 	"io/fs"
 	"os"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/dguerri/dockerfuse/pkg/rpc_common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

@@ -7,7 +7,7 @@ import (
 	"os"
 	"syscall"
 
-	"dockerfuse/pkg/rpc_common"
+	"github.com/dguerri/dockerfuse/pkg/rpc_common"
 
 	csys "github.com/lalkh/containerd/sys"
 )

@@ -1,4 +1,4 @@
-module dockerfuse
+module github.com/dguerri/dockerfuse
 
 go 1.18
 
