@@ -10,9 +10,11 @@ import (
 	"syscall"
 )
 
-/* open() flags. Different OSes use different values for open flags.
-   We translate OS specific into system agnostic flags and back to
-	 OS specific on the target system. */
+/*
+	 open() flags. Different OSes use different values for open flags.
+	   We translate OS specific into system agnostic flags and back to
+		 OS specific on the target system.
+*/
 const (
 	O_RDONLY   uint16 = 0
 	O_WRONLY   uint16 = (1 << 0)
@@ -27,8 +29,11 @@ const (
 	O_TRUNC    uint16 = (1 << 9)
 )
 
-/* Converts system-specific open() flags to an internal representation.
-   See also SAFlagsToSystem() */
+/*
+Converts system-specific open() flags to an internal representation.
+
+	See also SAFlagsToSystem()
+*/
 func SystemToSAFlags(flags_in int) (flags uint16) {
 	if flags_in == syscall.O_RDONLY {
 		return O_RDONLY
@@ -66,8 +71,11 @@ func SystemToSAFlags(flags_in int) (flags uint16) {
 	return
 }
 
-/* Converts the internal representation of open() flags to system-specific.
-   See also SystemToSAFlags() */
+/*
+Converts the internal representation of open() flags to system-specific.
+
+	See also SystemToSAFlags()
+*/
 func SAFlagsToSystem(flags_in uint16) (flags int) {
 	if flags_in == O_RDONLY {
 		return syscall.O_RDONLY // O_RDONLY == 0
@@ -110,6 +118,7 @@ func SAFlagsToSystem(flags_in uint16) (flags int) {
 	 This is needed as errno codes are not portable. (See Linux ENOTEMPTY vs
 	 Darwin EDESTADDRREQ). See also SymToErrno().
 */
+//gocyclo:ignore
 func ErrnoToSym(errno syscall.Errno) string {
 	switch errno {
 	case syscall.E2BIG:
@@ -291,9 +300,12 @@ func ErrnoToSym(errno syscall.Errno) string {
 	}
 }
 
-/* Convert symbolic representaton of an errno to errno code.
-   See also ErrnoToSym().
+/*
+Convert symbolic representaton of an errno to errno code.
+
+	See also ErrnoToSym().
 */
+//gocyclo:ignore
 func SymToErrno(sym string) syscall.Errno {
 	switch sym {
 	case "E2BIG":
