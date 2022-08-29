@@ -14,12 +14,13 @@ import (
 	"github.com/dguerri/dockerfuse/cmd/satellite/server"
 )
 
-// rwCloser just merges a ReadCloser and a WriteCloser into a ReadWriteCloser.
+// RWCloser merges a ReadCloser and a WriteCloser into a ReadWriteCloser.
 type RWCloser struct {
 	io.ReadCloser
 	io.WriteCloser
 }
 
+// Close closes underlying Reader and Writer
 func (rw RWCloser) Close() error {
 	err := rw.ReadCloser.Close()
 	if err := rw.WriteCloser.Close(); err != nil {

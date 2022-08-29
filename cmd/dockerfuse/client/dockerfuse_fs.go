@@ -31,6 +31,7 @@ var _ = (fusefs.NodeSymlinker)((*Node)(nil))
 var _ = (fusefs.NodeUnlinker)((*Node)(nil))
 var _ = (fusefs.NodeWriter)((*Node)(nil))
 
+// Node is a filesystem node used by dockerfuse to represent directories, files or links
 type Node struct {
 	fusefs.Inode
 
@@ -39,6 +40,7 @@ type Node struct {
 	fuseDockerClient DockerFuseClientInterface
 }
 
+// NewNode creates a new Node
 func NewNode(fuseDockerClient DockerFuseClientInterface, fullPath string, linkTarget string) *Node {
 	return &Node{
 		Data:             []byte(linkTarget),
@@ -51,7 +53,7 @@ func (node *Node) Create(ctx context.Context, name string, flags uint32, mode ui
 	log.Printf("Create() called on '%s' name: '%s', flags: %d, mode: %d", node.fullPath, name, flags, mode)
 
 	fullPath := filepath.Clean(filepath.Join(node.fullPath, name))
-	var fuseAttr StatAttr
+	var fuseAttr statAttr
 	fh, errno = node.fuseDockerClient.create(ctx, fullPath, int(flags), fs.FileMode(mode), &fuseAttr)
 	if errno != 0 {
 		log.Printf("error in open for '%s': %d", fullPath, errno)
@@ -84,7 +86,7 @@ func (node *Node) Fsync(ctx context.Context, fh fusefs.FileHandle, flags uint32)
 func (node *Node) Getattr(ctx context.Context, fh fusefs.FileHandle, out *fuse.AttrOut) (errno syscall.Errno) {
 	log.Printf("Getattr() called on '%s' (fh: %v)", node.fullPath, fh)
 
-	var fuseAttr StatAttr
+	var fuseAttr statAttr
 	errno = node.fuseDockerClient.stat(ctx, node.fullPath, fh, &fuseAttr)
 	if errno != 0 {
 		log.Printf("error in stat for '%s': %d", node.fullPath, errno)
@@ -113,7 +115,7 @@ func (node *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	log.Printf("Lookup() called on '%s' with name '%s'", node.fullPath, name)
 	fullPath := filepath.Clean(filepath.Join(node.fullPath, name))
 
-	var fuseAttr StatAttr
+	var fuseAttr statAttr
 	syserr = node.fuseDockerClient.stat(ctx, fullPath, nil, &fuseAttr)
 	if syserr != 0 {
 		log.Printf("error in stat for '%s': %d", fullPath, syserr)
@@ -152,7 +154,7 @@ func (node *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse
 	log.Printf("Mkdir() called on '%s' name: '%s', mode: %d", node.fullPath, name, mode)
 
 	fullPath := filepath.Clean(filepath.Join(node.fullPath, name))
-	var fuseAttr StatAttr
+	var fuseAttr statAttr
 	errno = node.fuseDockerClient.mkdir(ctx, fullPath, fs.FileMode(mode), &fuseAttr)
 	if errno != 0 {
 		log.Printf("error in mkdir for '%s': %d", fullPath, errno)
@@ -235,7 +237,7 @@ func (node *Node) Rmdir(ctx context.Context, name string) (errno syscall.Errno) 
 func (node *Node) Setattr(ctx context.Context, f fusefs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) (errno syscall.Errno) {
 	log.Printf("Setattr() called on '%s' with %v", node.fullPath, *in)
 
-	var fuseAttr StatAttr
+	var fuseAttr statAttr
 	errno = node.fuseDockerClient.setAttr(ctx, node.fullPath, in, &fuseAttr)
 	if errno != 0 {
 		log.Printf("error in setattr for '%s': %d", node.fullPath, errno)

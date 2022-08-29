@@ -1,10 +1,11 @@
-package rpc_common
+package rpccommon
 
 import (
 	"os"
 	"time"
 )
 
+// DirEntry holds essential information about an entry in a directory
 type DirEntry struct {
 	Mode uint32
 	Name string
@@ -27,8 +28,8 @@ type StatReply struct {
 	Mode       uint32
 	Nlink      uint32
 	Ino        uint64
-	Uid        uint32
-	Gid        uint32
+	UID        uint32
+	GID        uint32
 	Atime      int64
 	Mtime      int64
 	Ctime      int64
@@ -143,8 +144,8 @@ type SetAttrRequest struct {
 	ValidAttrs uint32 // See SATTR_* bitmap
 	ATime      time.Time
 	MTime      time.Time
-	Uid        uint32
-	Gid        uint32
+	UID        uint32
+	GID        uint32
 	Mode       uint32
 	Size       uint64
 }
@@ -156,15 +157,15 @@ func (r *SetAttrRequest) GetMode() (m uint32, ok bool) {
 	}
 	return 0, false
 }
-func (r *SetAttrRequest) GetUid() (u uint32, ok bool) {
+func (r *SetAttrRequest) GetUID() (u uint32, ok bool) {
 	if r.ValidAttrs&SATTR_UID == SATTR_UID {
-		return r.Uid, true
+		return r.UID, true
 	}
 	return 0, false
 }
-func (r *SetAttrRequest) GetGid() (g uint32, ok bool) {
+func (r *SetAttrRequest) GetGID() (g uint32, ok bool) {
 	if r.ValidAttrs&SATTR_GID == SATTR_GID {
-		return r.Gid, true
+		return r.GID, true
 	}
 	return 0, false
 }
@@ -188,8 +189,8 @@ func (r *SetAttrRequest) GetSize() (m uint64, ok bool) {
 }
 
 func (r *SetAttrRequest) SetMode(m uint32)     { r.Mode = m; r.ValidAttrs |= SATTR_MODE }
-func (r *SetAttrRequest) SetUid(u uint32)      { r.Uid = u; r.ValidAttrs |= SATTR_UID }
-func (r *SetAttrRequest) SetGid(g uint32)      { r.Gid = g; r.ValidAttrs |= SATTR_GID }
+func (r *SetAttrRequest) SetUID(u uint32)      { r.UID = u; r.ValidAttrs |= SATTR_UID }
+func (r *SetAttrRequest) SetGID(g uint32)      { r.GID = g; r.ValidAttrs |= SATTR_GID }
 func (r *SetAttrRequest) SetATime(a time.Time) { r.ATime = a; r.ValidAttrs |= SATTR_ATIME }
 func (r *SetAttrRequest) SetMTime(m time.Time) { r.MTime = m; r.ValidAttrs |= SATTR_MTIME }
 func (r *SetAttrRequest) SetSize(s uint64)     { r.Size = s; r.ValidAttrs |= SATTR_SIZE }

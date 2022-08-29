@@ -29,8 +29,9 @@ var (
 	mountPoint   string
 	daemonize    bool
 	printVersion bool
-	// Version and GitCommit are set at build-time
-	Version   string
+	// Version holds the version tag, and it is set at build-time
+	Version string
+	// GitCommit holds the git commit used to build the binary. It is set at build-time
 	GitCommit string
 )
 

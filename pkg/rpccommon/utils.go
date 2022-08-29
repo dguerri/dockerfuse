@@ -1,4 +1,4 @@
-package rpc_common
+package rpccommon
 
 import (
 	"fmt"
@@ -30,93 +30,93 @@ const (
 )
 
 /*
-Converts system-specific open() flags to an internal representation.
-
-	See also SAFlagsToSystem()
+SystemToSAFlags converts system-specific open() flags to an internal representation.
+See also SAFlagsToSystem()
 */
-func SystemToSAFlags(flags_in int) (flags uint16) {
-	if flags_in == syscall.O_RDONLY {
+func SystemToSAFlags(flagsIn int) (flags uint16) {
+	if flagsIn == syscall.O_RDONLY {
 		return O_RDONLY
 	}
-	if flags_in&syscall.O_WRONLY == syscall.O_WRONLY {
+	if flagsIn&syscall.O_WRONLY == syscall.O_WRONLY {
 		flags |= O_WRONLY
 	}
-	if flags_in&syscall.O_RDWR == syscall.O_RDWR {
+	if flagsIn&syscall.O_RDWR == syscall.O_RDWR {
 		flags |= O_RDWR
 	}
-	if flags_in&syscall.O_APPEND == syscall.O_APPEND {
+	if flagsIn&syscall.O_APPEND == syscall.O_APPEND {
 		flags |= O_APPEND
 	}
-	if flags_in&syscall.O_ASYNC == syscall.O_ASYNC {
+	if flagsIn&syscall.O_ASYNC == syscall.O_ASYNC {
 		flags |= O_ASYNC
 	}
-	if flags_in&syscall.O_CREAT == syscall.O_CREAT {
+	if flagsIn&syscall.O_CREAT == syscall.O_CREAT {
 		flags |= O_CREAT
 	}
-	if flags_in&syscall.O_EXCL == syscall.O_EXCL {
+	if flagsIn&syscall.O_EXCL == syscall.O_EXCL {
 		flags |= O_EXCL
 	}
-	if flags_in&syscall.O_NOCTTY == syscall.O_NOCTTY {
+	if flagsIn&syscall.O_NOCTTY == syscall.O_NOCTTY {
 		flags |= O_NOCTTY
 	}
-	if flags_in&syscall.O_NONBLOCK == syscall.O_NONBLOCK {
+	if flagsIn&syscall.O_NONBLOCK == syscall.O_NONBLOCK {
 		flags |= O_NONBLOCK
 	}
-	if flags_in&syscall.O_SYNC == syscall.O_SYNC {
+	if flagsIn&syscall.O_SYNC == syscall.O_SYNC {
 		flags |= O_SYNC
 	}
-	if flags_in&syscall.O_TRUNC == syscall.O_TRUNC {
+	if flagsIn&syscall.O_TRUNC == syscall.O_TRUNC {
 		flags |= O_TRUNC
 	}
 	return
 }
 
 /*
-Converts the internal representation of open() flags to system-specific.
-
-	See also SystemToSAFlags()
+SAFlagsToSystem converts the internal representation of open() flags to system-specific.
+See also SystemToSAFlags()
 */
-func SAFlagsToSystem(flags_in uint16) (flags int) {
-	if flags_in == O_RDONLY {
+func SAFlagsToSystem(flagsIn uint16) (flags int) {
+	if flagsIn == O_RDONLY {
 		return syscall.O_RDONLY // O_RDONLY == 0
 	}
-	if flags_in&O_WRONLY == O_WRONLY {
+	if flagsIn&O_WRONLY == O_WRONLY {
 		flags |= syscall.O_WRONLY
 	}
-	if flags_in&O_RDWR == O_RDWR {
+	if flagsIn&O_RDWR == O_RDWR {
 		flags |= syscall.O_RDWR
 	}
-	if flags_in&O_APPEND == O_APPEND {
+	if flagsIn&O_APPEND == O_APPEND {
 		flags |= syscall.O_APPEND
 	}
-	if flags_in&O_ASYNC == O_ASYNC {
+	if flagsIn&O_ASYNC == O_ASYNC {
 		flags |= syscall.O_ASYNC
 	}
-	if flags_in&O_CREAT == O_CREAT {
+	if flagsIn&O_CREAT == O_CREAT {
 		flags |= syscall.O_CREAT
 	}
-	if flags_in&O_EXCL == O_EXCL {
+	if flagsIn&O_EXCL == O_EXCL {
 		flags |= syscall.O_EXCL
 	}
-	if flags_in&O_NOCTTY == O_NOCTTY {
+	if flagsIn&O_NOCTTY == O_NOCTTY {
 		flags |= syscall.O_NOCTTY
 	}
-	if flags_in&O_NONBLOCK == O_NONBLOCK {
+	if flagsIn&O_NONBLOCK == O_NONBLOCK {
 		flags |= syscall.O_NONBLOCK
 	}
-	if flags_in&O_SYNC == O_SYNC {
+	if flagsIn&O_SYNC == O_SYNC {
 		flags |= syscall.O_SYNC
 	}
-	if flags_in&O_TRUNC == O_TRUNC {
+	if flagsIn&O_TRUNC == O_TRUNC {
 		flags |= syscall.O_TRUNC
 	}
 	return
 }
 
-/* Converts system-specific errno codes to strings, to be converted back to
-   errno codes on the other side.
-	 This is needed as errno codes are not portable. (See Linux ENOTEMPTY vs
-	 Darwin EDESTADDRREQ). See also SymToErrno().
+/*
+ErrnoToSym converts system-specific errno codes to strings, to be converted back to
+errno codes on the other side.
+
+This is needed as errno codes are not portable. (See Linux ENOTEMPTY vs
+Darwin EDESTADDRREQ). See also SymToErrno().
 */
 //gocyclo:ignore
 func ErrnoToSym(errno syscall.Errno) string {
@@ -301,9 +301,8 @@ func ErrnoToSym(errno syscall.Errno) string {
 }
 
 /*
-Convert symbolic representaton of an errno to errno code.
-
-	See also ErrnoToSym().
+SymToErrno converts symbolic representaton of an errno to errno code.
+See also ErrnoToSym().
 */
 //gocyclo:ignore
 func SymToErrno(sym string) syscall.Errno {
@@ -491,6 +490,11 @@ func SymToErrno(sym string) syscall.Errno {
 	}
 }
 
+/*
+ErrnoToRPCErrorString returns a structured error that can be parsed on the client.
+This is necessary as RPC framework in the standard lib doesn't return an /error/
+but a string with the error message.
+*/
 func ErrnoToRPCErrorString(err error) error {
 	switch e := err.(type) {
 	case *fs.PathError:
@@ -512,6 +516,11 @@ func ErrnoToRPCErrorString(err error) error {
 	}
 }
 
+/*
+RPCErrorStringTOErrno converts a structured error into a syscall Errno.
+This is necessary as RPC framework in the standard lib doesn't return an /error/
+but a string with the error message.
+*/
 func RPCErrorStringTOErrno(err error) (syserr syscall.Errno) {
 	if strings.HasPrefix(err.Error(), "errno: ") {
 		return SymToErrno(strings.SplitN(err.Error(), " ", 2)[1])
