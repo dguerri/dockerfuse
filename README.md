@@ -4,7 +4,6 @@
 
 ***NOTE: this software is a WIP, use at your risk!***
 
-
 DockerFuse allows mounting the filesystem of Docker containers locally, without installing additional services on the container (e.g. ssh).
 
 ![dockerfuse demo](doc/dockerfuse.gif)
