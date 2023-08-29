@@ -165,7 +165,7 @@ func (fso *DockerFuseFSOps) Read(request rpccommon.ReadRequest, reply *rpccommon
 
 	data := make([]byte, request.Num)
 	n, err := file.ReadAt(data, request.Offset)
-	if err != nil {
+	if err != nil && (err.Error() != "EOF" || n <= 0) {
 		return rpccommon.ErrnoToRPCErrorString(err)
 	}
 
