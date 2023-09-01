@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"syscall"
@@ -705,10 +706,11 @@ func TestRead(t *testing.T) {
 	// *** Setup
 	dfFSOps := NewDockerFuseFSOps()
 	var (
-		mFS   mockFS
-		mFile mockFile
-		reply rpccommon.ReadReply
-		err   error
+		mFS    mockFS
+		mFile  mockFile
+		reply  rpccommon.ReadReply
+		err    error
+		offset int64
 	)
 	dfFS = &mFS // Set mock filesystem
 
@@ -763,6 +765,29 @@ func TestRead(t *testing.T) {
 	assert.NoError(t, err)
 	mFile.AssertExpectations(t)
 	assert.Equal(t, rpccommon.ReadReply{Data: []byte{3, 4, 5, 6, 7}}, reply)
+
+	// *** Testing small file on ReadAt
+	// size of the buffer > data we actually have in file
+	mFS = mockFS{}
+	mFile = mockFile{}
+	reply = rpccommon.ReadReply{}
+	offset = 0
+	mFile.On("ReadAt", make([]byte, 32), int64(offset)).Return(5, io.EOF).Run(
+		func(args mock.Arguments) {
+			data := args.Get(0).([]byte)
+			// num := args.Get(1).(int64)
+			for i := 0; i < 5; i++ { // our file is 5 bytes long
+				data[i] = byte(i + 1)
+			}
+		},
+	)
+	dfFSOps.fds = map[uintptr]file{29: &mFile}
+
+	err = dfFSOps.Read(rpccommon.ReadRequest{FD: 29, Offset: offset, Num: 32}, &reply)
+
+	assert.NoError(t, err)
+	mFile.AssertExpectations(t)
+	assert.Equal(t, rpccommon.ReadReply{Data: []byte{1, 2, 3, 4, 5}}, reply)
 }
 
 func TestSeek(t *testing.T) {
