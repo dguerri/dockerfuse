@@ -27,6 +27,7 @@ const (
 var (
 	containerID  string
 	mountPoint   string
+	path         string
 	daemonize    bool
 	printVersion bool
 	// Version holds the version tag, and it is set at build-time
@@ -39,11 +40,14 @@ func init() {
 	flag.BoolVar(&printVersion, "version", false, "Print the version and exit")
 	flag.BoolVar(&printVersion, "v", false, "Print the version and exit")
 
-	flag.StringVar(&containerID, "id", "", "Docker containter ID (or name)")
-	flag.StringVar(&containerID, "i", "", "Docker containter ID (or name)")
+	flag.StringVar(&containerID, "id", "", "Docker container ID (or name)")
+	flag.StringVar(&containerID, "i", "", "Docker container ID (or name)")
 
-	flag.StringVar(&mountPoint, "mount", "", "Mount point for containter FS")
-	flag.StringVar(&mountPoint, "m", "", "Mount point for containter FS")
+	flag.StringVar(&mountPoint, "mount", "", "Mount point for container FS")
+	flag.StringVar(&mountPoint, "m", "", "Mount point for container FS")
+
+	flag.StringVar(&path, "path", "/", "Path inside the container")
+	flag.StringVar(&path, "p", "/", "Path inside the container")
 
 	flag.BoolVar(&daemonize, "daemonize", false, "Daemonize fuse process")
 	flag.BoolVar(&daemonize, "d", false, "Daemonize fuse process")
@@ -53,7 +57,7 @@ func init() {
 func main() {
 	flag.Parse()
 	if printVersion {
-		fmt.Printf("DockerFuse\nVersion: %s\nGit commmit: %s\n", Version, GitCommit)
+		fmt.Printf("DockerFuse\nVersion: %s\nGit commit: %s\n", Version, GitCommit)
 		os.Exit(0)
 	}
 
@@ -101,7 +105,7 @@ func main() {
 
 	fuseDockerClient, err := client.NewDockerFuseClient(containerID)
 	if err != nil {
-		log.Panicf("error initiazializing docker client: %s", err)
+		log.Panicf("error initializing docker client: %s", err)
 	} else {
 		log.Printf("docker client created")
 	}
@@ -109,7 +113,7 @@ func main() {
 	log.Printf("mounting FS to %v...", mountPoint)
 	vEntryTTL := entryTTL
 	vAttrTTL := attrTTL
-	server, err := fs.Mount(mountPoint, client.NewNode(fuseDockerClient, "/", ""), &fs.Options{
+	server, err := fs.Mount(mountPoint, client.NewNode(fuseDockerClient, path, ""), &fs.Options{
 		EntryTimeout:    &vEntryTTL,
 		AttrTimeout:     &vAttrTTL,
 		NegativeTimeout: &vEntryTTL,
