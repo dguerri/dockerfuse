@@ -3,7 +3,7 @@ module github.com/dguerri/dockerfuse
 go 1.18
 
 require (
-	github.com/docker/docker v20.10.24+incompatible
+	github.com/docker/docker v24.0.7+incompatible
 	github.com/hanwen/go-fuse/v2 v2.1.0
 	github.com/lalkh/containerd v1.4.3
 	github.com/stretchr/testify v1.8.0
