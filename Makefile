@@ -38,7 +38,7 @@ quality_test:
 
 interactive_test: all
 	docker kill dockerfuse-test || true
-	docker run -dit --rm --name dockerfuse-test alpine:latest sh
+	docker run -d --rm --name dockerfuse-test alpine:latest sleep inf
 	umount tmp || true
 	./dockerfuse -i dockerfuse-test -m ./tmp
 	umount tmp || true
