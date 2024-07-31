@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"syscall"
 )
@@ -525,7 +526,7 @@ func RPCErrorStringTOErrno(err error) (syserr syscall.Errno) {
 	if strings.HasPrefix(err.Error(), "errno: ") {
 		return SymToErrno(strings.SplitN(err.Error(), " ", 2)[1])
 	}
-	log.Printf("malformed error from server: %s", err.Error())
+	log.Printf("malformed error from server: %s\n%s", err.Error(), debug.Stack())
 	syserr = syscall.EIO
 	return
 }
