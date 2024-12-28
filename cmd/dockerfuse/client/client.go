@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/dguerri/dockerfuse/pkg/rpccommon"
+	"github.com/docker/cli/cli/connhelper"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
@@ -63,11 +66,37 @@ type DockerFuseClient struct {
 
 // NewDockerFuseClient returns a new DockerFuseClient pointer
 func NewDockerFuseClient(containerID string) (*DockerFuseClient, error) {
-	docker, err := dockerCF.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	var clientOpts []client.Opt = nil
+	if strings.HasPrefix(os.Getenv("DOCKER_HOST"), "ssh://") {
+		helper, err := connhelper.GetConnectionHelper(os.Getenv("DOCKER_HOST"))
+		if err != nil {
+			return nil, err
+		}
+
+		httpClient := &http.Client{
+			Transport: &http.Transport{
+				DialContext: helper.Dialer,
+			},
+		}
+
+		clientOpts = append(clientOpts,
+			client.WithHTTPClient(httpClient),
+			client.WithHost(helper.Host),
+			client.WithDialContext(helper.Dialer),
+		)
+	} else {
+		clientOpts = append(clientOpts, client.FromEnv)
+	}
+	version := os.Getenv("DOCKER_API_VERSION")
+	if version != "" {
+		clientOpts = append(clientOpts, client.WithVersion(version))
+	} else {
+		clientOpts = append(clientOpts, client.WithAPIVersionNegotiation())
+	}
+	docker, err := dockerCF.NewClientWithOpts(clientOpts...)
 	if err != nil {
 		return nil, err
 	}
-
 	fdc := &DockerFuseClient{
 		dockerClient: docker,
 		containerID:  containerID,
