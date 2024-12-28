@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.22.5
 
 require (
-	github.com/docker/docker v26.1.4+incompatible
+	github.com/docker/docker v27.4.1+incompatible
 	github.com/hanwen/go-fuse/v2 v2.1.0
 	github.com/lalkh/containerd v1.4.3
 	github.com/stretchr/testify v1.9.0
@@ -50,6 +50,7 @@ require (
 )
 
 require (
+	github.com/docker/cli v27.4.1+incompatible
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/sevlyar/go-daemon v0.1.6
 	golang.org/x/sys v0.21.0 // indirect
