@@ -22,7 +22,7 @@ To run an interactive test, pulling `alpine` image, spinning up a container and 
 make interactive_test
 ```
 
-To invoke dockerfuse manually:
+To invoke Dockerfuse manually:
 
 ```bash
 cd <dockerfuse dir>
@@ -43,12 +43,12 @@ Presently the server is left on the container when the filesystem is unmounted. 
 ### Q. How is it different from [plesk/docker-fs](https://github.com/plesk/docker-fs)?
 
 Docker-fs uses Docker Engine to provide access to the container's filesystem, and that has important limitations.
-To name some: Docker-fs has to download the whole container image on start (using it as a tar FS with FUSE) and use it as a tar-based FS with FUSE (making initial access very slow). It cannot create empty direcotries and it cannot handle large files (read/writes operates on the entire file).
+To name some: Docker-fs has to download the whole container image on start (using it as a tar FS with FUSE) and use it as a tar-based FS with FUSE (making initial access very slow). It cannot create empty directories, and it cannot handle large files (read/writes operates on the entire file).
 
 Dockerfuse implements operations needed by FUSE through RPC calls and a satellite app.
 Dockerfuse satellite uses native systemcall (through the Go standard library) on the running container image. For filesystem operations, this is both faster and more flexible than using Docker Engine's API.
 
-The obvious caveat is that while docker-fs doesn't need any additional software on the container, dockerfuse has to uplad a small binary (i.e. ~ 4 MBytes) to the container.
+The obvious caveat is that while docker-fs doesn't need any additional software on the container, Dockerfuse has to upload a small binary (i.e. ~ 4 MBytes) to the container.
 The satellite is light-weight also for the computational power requirement, so it shouldn't affect your workload. Of course the actual load depends on the filesystem operations performed (and it should be noted that MacOS issues a huge number of `Getattr()` (STATFS) calls, potentially [affecting FUSE performances](https://github.com/hanwen/go-fuse#macos-support))
 
 ### Q. Does it work on remote Docker servers?
@@ -56,14 +56,18 @@ The satellite is light-weight also for the computational power requirement, so i
 Yeah. Dockerfuse can work on local Docker instances or on remote ones.
 It uses the environment (i.e., `DOCKER_HOST`, `DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`) to connect to the Docker server, and then it operates via TCP(*).
 
-(*) Tecnically Dockerfuse uses a TCP connection which is "upgraded" from an HTTP connection, similarly to what happens with web sockets.
+(*) Technically, Dockerfuse uses a TCP connection which is "upgraded" from an HTTP connection, similarly to what happens with web sockets.
 
 ### Q. Does it work for arm64 containers?
 
 Yeah. The makefile creates 2 satellite instances, one for amd64 and one for arm64.
-When mountig a remote container, Dockerfuse inspect the related image and uploads the right satellite instance.
+When mounting a remote container, Dockerfuse inspect the related image and uploads the right satellite instance.
 
-This allows you to mount the filesystem of an arm64 container on a amd64 machine, and the way around.
+This allows you to mount the filesystem of an arm64 container on an amd64 machine, and the way around.
+
+### Q. Does it work for distroless containers?
+
+Yup! Matter of fact Dockerfuse works great on minimal Docker containers, even when there is no shell installed.
 
 ## License
 
