@@ -205,10 +205,10 @@ func (d *DockerFuseClient) stat(ctx context.Context, fullPath string, fh fusefs.
 	)
 
 	request.FullPath = fullPath
-	if fh != nil {
-		request.FD = fh.(uintptr)
-		request.UseFD = true
-	}
+	//if fh != nil {
+	//	request.FD = fh.(uintptr)
+	//	request.UseFD = true
+	//}
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Stat", request, &reply)
 	if err != nil {
