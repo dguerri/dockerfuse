@@ -16,7 +16,7 @@ import (
 
 	"github.com/dguerri/dockerfuse/pkg/rpccommon"
 	"github.com/docker/cli/cli/connhelper"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -165,7 +165,7 @@ func (d *DockerFuseClient) uploadSatellite(ctx context.Context) (err error) {
 
 	slog.Info("copying", "source", satelliteFullLocalPath, "destination", fmt.Sprintf("%s:%s", d.containerID, d.satelliteFullRemotePath))
 	tr := bufio.NewReader(&buf)
-	err = d.dockerClient.CopyToContainer(ctx, d.containerID, satelliteExecPath, tr, types.CopyToContainerOptions{})
+	err = d.dockerClient.CopyToContainer(ctx, d.containerID, satelliteExecPath, tr, container.CopyToContainerOptions{})
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (d *DockerFuseClient) connectSatellite(ctx context.Context) (err error) {
 		d.disconnect()
 	}
 
-	config := types.ExecConfig{
+	config := container.ExecOptions{
 		AttachStderr: false,
 		AttachStdout: true,
 		AttachStdin:  true,
@@ -190,7 +190,7 @@ func (d *DockerFuseClient) connectSatellite(ctx context.Context) (err error) {
 	if err != nil {
 		return
 	}
-	hl, err := d.dockerClient.ContainerExecAttach(ctx, execID.ID, types.ExecStartCheck{Tty: true})
+	hl, err := d.dockerClient.ContainerExecAttach(ctx, execID.ID, container.ExecStartOptions{Tty: true})
 	if err != nil {
 		return
 	}
