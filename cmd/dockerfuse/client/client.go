@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -163,7 +163,7 @@ func (d *DockerFuseClient) uploadSatellite(ctx context.Context) (err error) {
 	tw.Write([]byte(satelliteBin))
 	tw.Close()
 
-	log.Printf("copying %s to %s:%s", satelliteFullLocalPath, d.containerID, d.satelliteFullRemotePath)
+	slog.Info("copying", "source", satelliteFullLocalPath, "destination", fmt.Sprintf("%s:%s", d.containerID, d.satelliteFullRemotePath))
 	tr := bufio.NewReader(&buf)
 	err = d.dockerClient.CopyToContainer(ctx, d.containerID, satelliteExecPath, tr, types.CopyToContainerOptions{})
 	if err != nil {

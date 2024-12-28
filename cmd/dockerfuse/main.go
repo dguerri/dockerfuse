@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"os/user"
@@ -22,6 +22,18 @@ import (
 const (
 	attrTTL  = 1500 * time.Millisecond
 	entryTTL = 1500 * time.Millisecond
+)
+
+// Exit codes
+const (
+	errorNone             = 0
+	errorArgs             = 1
+	errorDaemon           = 2
+	errorCreateMount      = 3
+	errorGetUser          = 4
+	errorInvalidUidGid    = 5
+	errorInitDockerClient = 6
+	errorMountUnmount     = 7
 )
 
 var (
@@ -58,26 +70,26 @@ func main() {
 	flag.Parse()
 	if printVersion {
 		fmt.Printf("DockerFuse\nVersion: %s\nGit commit: %s\n", Version, GitCommit)
-		os.Exit(0)
+		os.Exit(errorNone)
 	}
 
 	if containerID == "" {
-		log.Printf("container id is not specified.\n")
+		slog.Error("container id is not specified.\n")
 		flag.Usage()
-		os.Exit(2)
+		os.Exit(errorArgs)
 	}
 	if mountPoint == "" {
-		log.Printf("mount point is not specified.\n")
+		slog.Error("mount point is not specified.\n")
 		flag.Usage()
-		os.Exit(2)
+		os.Exit(errorArgs)
 	}
 
 	if daemonize {
 		ctx := daemon.Context{}
 		child, err := ctx.Reborn()
 		if err != nil {
-			log.Printf("daemonization failed: %s", err)
-			os.Exit(3)
+			slog.Error("daemonization failed", "error", err)
+			os.Exit(errorDaemon)
 		}
 		if child != nil {
 			// parent process
@@ -85,32 +97,37 @@ func main() {
 		}
 	}
 
-	log.Printf("checking if mount directory exists (%v)...", mountPoint)
+	slog.Debug("checking if mount directory exists", "path", mountPoint)
 	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		os.Exit(4)
+		slog.Error("failed to create mount directory", "path", mountPoint, "error", err)
+		os.Exit(errorCreateMount)
 	}
 
 	user, err := user.Current()
 	if err != nil {
-		log.Fatalf("cannot get current user: %s", err)
+		slog.Error("cannot get current user", "error", err)
+		os.Exit(errorGetUser)
 	}
 	uid, err := strconv.Atoi(user.Uid)
 	if err != nil {
-		log.Fatalf("invalid uid (%s): %s", user.Uid, err)
+		slog.Error("invalid uid", "uid", user.Uid, "error", err)
+		os.Exit(errorInvalidUidGid)
 	}
 	gid, err := strconv.Atoi(user.Gid)
 	if err != nil {
-		log.Fatalf("invalid gid (%s): %s", user.Gid, err)
+		slog.Error("invalid gid", "gid", user.Gid, "error", err)
+		os.Exit(errorInvalidUidGid)
 	}
 
 	fuseDockerClient, err := client.NewDockerFuseClient(containerID)
 	if err != nil {
-		log.Panicf("error initializing docker client: %s", err)
+		slog.Error("error initializing docker client", "error", err)
+		os.Exit(errorInitDockerClient)
 	} else {
-		log.Printf("docker client created")
+		slog.Debug("docker client created")
 	}
 
-	log.Printf("mounting FS to %v...", mountPoint)
+	slog.Info("mounting FS", "path", mountPoint)
 	vEntryTTL := entryTTL
 	vAttrTTL := attrTTL
 	server, err := fs.Mount(mountPoint, client.NewNode(fuseDockerClient, path, ""), &fs.Options{
@@ -124,11 +141,11 @@ func main() {
 		GID: uint32(gid),
 	})
 	if err != nil {
-		log.Printf("mount failed: %s", err)
-		os.Exit(5)
+		slog.Error("mount failed", "error", err)
+		os.Exit(errorMountUnmount)
 	}
 
-	log.Printf("setting up signal handler...")
+	slog.Debug("setting up signal handler...")
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, syscall.SIGTERM, syscall.SIGINT)
 	go shutdown(server, osSignalChannel)
@@ -140,10 +157,10 @@ func main() {
 func shutdown(server *fuse.Server, signals <-chan os.Signal) {
 	<-signals
 	if err := server.Unmount(); err != nil {
-		log.Printf("server unmount failed: %v", err)
-		os.Exit(1)
+		slog.Error("unmount failed", "error", err)
+		os.Exit(errorMountUnmount)
 	}
 
-	log.Printf("unmount successful")
-	os.Exit(0)
+	slog.Info("unmount successful")
+	os.Exit(errorNone)
 }
