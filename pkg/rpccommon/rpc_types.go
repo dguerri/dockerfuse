@@ -21,8 +21,6 @@ type ReadDirReply struct {
 
 type StatRequest struct {
 	FullPath string
-	FD       uintptr
-	UseFD    bool
 }
 type StatReply struct {
 	Mode       uint32

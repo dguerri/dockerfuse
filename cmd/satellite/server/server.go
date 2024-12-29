@@ -36,15 +36,8 @@ func (fso *DockerFuseFSOps) Stat(request rpccommon.StatRequest, reply *rpccommon
 
 	var info fs.FileInfo
 	var err error
-	if request.UseFD {
-		fd, ok := fso.fds[request.FD]
-		if !ok {
-			return rpccommon.ErrnoToRPCErrorString(syscall.EINVAL)
-		}
-		info, err = fd.Stat()
-	} else {
-		info, err = dfFS.Lstat(request.FullPath)
-	}
+
+	info, err = dfFS.Lstat(request.FullPath)
 	if err != nil {
 		return rpccommon.ErrnoToRPCErrorString(err)
 	}
@@ -61,12 +54,11 @@ func (fso *DockerFuseFSOps) Stat(request rpccommon.StatRequest, reply *rpccommon
 	reply.Size = sys.Size
 	reply.Blocks = sys.Blocks
 	reply.Blksize = int32(sys.Blksize) // 64bit on amd64, 32bit on arm64
-	if !request.UseFD {
-		reply.LinkTarget, err = dfFS.Readlink(request.FullPath)
-		if err != nil {
-			reply.LinkTarget = ""
-		}
+	reply.LinkTarget, err = dfFS.Readlink(request.FullPath)
+	if err != nil {
+		reply.LinkTarget = ""
 	}
+
 	return nil
 }
 

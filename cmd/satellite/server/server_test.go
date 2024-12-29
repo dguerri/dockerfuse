@@ -102,7 +102,6 @@ func TestStat(t *testing.T) {
 	var (
 		mFS   mockFS
 		mFI   mockFileInfo
-		mFile mockFile
 		reply rpccommon.StatReply
 		err   error
 	)
@@ -115,7 +114,7 @@ func TestStat(t *testing.T) {
 	reply = rpccommon.StatReply{}
 	mFS.On("Lstat", "/test/error_on_lstat").Return(&mockFileInfo{}, syscall.ENOENT)
 
-	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/error_on_lstat", UseFD: false}, &reply)
+	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/error_on_lstat"}, &reply)
 
 	if assert.Error(t, err) {
 		assert.Equal(t, fmt.Errorf("errno: ENOENT"), err)
@@ -142,7 +141,7 @@ func TestStat(t *testing.T) {
 	mFS.On("Readlink", "/test/reg").Return("", nil)
 
 	reply = rpccommon.StatReply{}
-	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/reg", UseFD: false}, &reply)
+	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/reg"}, &reply)
 
 	assert.NoError(t, err)
 	mFI.AssertExpectations(t)
@@ -177,7 +176,7 @@ func TestStat(t *testing.T) {
 	mFS.On("Readlink", "/test/reg").Return("", syscall.EINVAL)
 
 	reply = rpccommon.StatReply{}
-	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/reg", UseFD: false}, &reply)
+	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/reg"}, &reply)
 
 	assert.NoError(t, err)
 	mFI.AssertExpectations(t)
@@ -212,7 +211,7 @@ func TestStat(t *testing.T) {
 	mFS.On("Lstat", "/test/symlink").Return(&mFI, nil)
 	mFS.On("Readlink", "/test/symlink").Return("/test/symlinktarget", nil)
 
-	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/symlink", UseFD: false}, &reply)
+	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/symlink"}, &reply)
 
 	assert.NoError(t, err)
 	mFI.AssertExpectations(t)
@@ -228,77 +227,6 @@ func TestStat(t *testing.T) {
 		Blksize:    1024,
 		LinkTarget: "/test/symlinktarget",
 	}, reply)
-
-	// *** Testing happy path on regular file, with FD
-	mFS = mockFS{}
-	dfFSOps.fds = map[uintptr]file{}
-	mFI = mockFileInfo{}
-	mFile = mockFile{}
-	reply = rpccommon.StatReply{}
-	mFI.On("Sys").Return(&syscall.Stat_t{
-		Mode:    0760,
-		Nlink:   1,
-		Ino:     29,
-		Uid:     1,
-		Gid:     2,
-		Blocks:  29,
-		Blksize: 1024,
-		Size:    29696,
-	})
-	mFile.On("Stat").Return(&mFI, nil)
-	mFS.On("Lstat", "/test/reg").Return(&mFI, nil)
-	mFS.On("Readlink", "/test/reg").Return("", nil)
-
-	dfFSOps.fds[29] = &mFile
-	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "/test/reg", FD: 29, UseFD: true}, &reply)
-
-	assert.NoError(t, err)
-	mFI.AssertExpectations(t)
-	mFile.AssertExpectations(t)
-	mFS.AssertNotCalled(t, "Stat", mock.Anything)
-	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
-	assert.Equal(t, rpccommon.StatReply{
-		Mode:       0760,
-		Nlink:      1,
-		Ino:        29,
-		UID:        1,
-		GID:        2,
-		Size:       29696,
-		Blocks:     29,
-		Blksize:    1024,
-		LinkTarget: "",
-	}, reply)
-
-	// *** Testing error on retrieving FD
-	mFS = mockFS{}
-	dfFSOps.fds = map[uintptr]file{}
-	mFI = mockFileInfo{}
-	mFile = mockFile{}
-	reply = rpccommon.StatReply{}
-	mFI.On("Sys").Return(&syscall.Stat_t{
-		Mode:    0760,
-		Nlink:   1,
-		Ino:     29,
-		Uid:     1,
-		Gid:     2,
-		Blocks:  29,
-		Blksize: 1024,
-		Size:    29696,
-	})
-	mFile.On("Stat").Return(&mFI, nil)
-	mFS.On("Lstat", "").Return(&mFI, nil)
-	mFS.On("Readlink", "").Return("", nil)
-
-	err = dfFSOps.Stat(rpccommon.StatRequest{FullPath: "", FD: 29, UseFD: true}, &reply)
-
-	if assert.Error(t, err) {
-		assert.Equal(t, fmt.Errorf("errno: EINVAL"), err)
-	}
-	mFI.AssertNotCalled(t, "Sys", mock.Anything)
-	mFile.AssertNotCalled(t, "Stat", mock.Anything)
-	mFS.AssertNotCalled(t, "Stat", mock.Anything)
-	mFS.AssertNotCalled(t, "Readlink", mock.Anything)
-	assert.Equal(t, rpccommon.StatReply{}, reply)
 }
 
 func TestReadDir(t *testing.T) {

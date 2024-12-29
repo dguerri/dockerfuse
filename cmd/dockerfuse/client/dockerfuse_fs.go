@@ -87,7 +87,7 @@ func (node *Node) Getattr(ctx context.Context, fh fusefs.FileHandle, out *fuse.A
 	slog.Debug("Getattr() called", "path", node.fullPath, "fh", fh)
 
 	var fuseAttr statAttr
-	errno = node.fuseDockerClient.stat(ctx, node.fullPath, fh, &fuseAttr)
+	errno = node.fuseDockerClient.stat(ctx, node.fullPath, &fuseAttr)
 	if errno != 0 {
 		// This is pretty noisy when targeting non-existing files
 		slog.Debug("remote error in stat()", "path", node.fullPath, "errno", errno)
@@ -117,7 +117,7 @@ func (node *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	fullPath := filepath.Clean(filepath.Join(node.fullPath, name))
 
 	var fuseAttr statAttr
-	syserr = node.fuseDockerClient.stat(ctx, fullPath, nil, &fuseAttr)
+	syserr = node.fuseDockerClient.stat(ctx, fullPath, &fuseAttr)
 	if syserr != 0 {
 		// This is pretty noisy (e.g., for shell with auto completion)
 		slog.Debug("remote error in stat()", "path", fullPath, "syserr", syserr)

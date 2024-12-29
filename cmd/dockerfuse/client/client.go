@@ -50,7 +50,7 @@ type DockerFuseClientInterface interface {
 	rmdir(ctx context.Context, fullPath string) (syserr syscall.Errno)
 	seek(ctx context.Context, fh fusefs.FileHandle, offset int64, whence int) (n int64, syserr syscall.Errno)
 	setAttr(ctx context.Context, fullPath string, in *fuse.SetAttrIn, out *statAttr) (syserr syscall.Errno)
-	stat(ctx context.Context, fullPath string, fh fusefs.FileHandle, attr *statAttr) (syserr syscall.Errno)
+	stat(ctx context.Context, fullPath string, attr *statAttr) (syserr syscall.Errno)
 	symlink(ctx context.Context, oldFullPath string, newFullPath string) (syserr syscall.Errno)
 	unlink(ctx context.Context, fullPath string) (syserr syscall.Errno)
 	write(ctx context.Context, fh fusefs.FileHandle, offset int64, data []byte) (n int, syserr syscall.Errno)
@@ -198,17 +198,12 @@ func (d *DockerFuseClient) connectSatellite(ctx context.Context) (err error) {
 	return
 }
 
-func (d *DockerFuseClient) stat(ctx context.Context, fullPath string, fh fusefs.FileHandle, attr *statAttr) (syserr syscall.Errno) {
+func (d *DockerFuseClient) stat(ctx context.Context, fullPath string, attr *statAttr) (syserr syscall.Errno) {
 	var (
 		reply   rpccommon.StatReply
 		request rpccommon.StatRequest
 	)
-
 	request.FullPath = fullPath
-	//if fh != nil {
-	//	request.FD = fh.(uintptr)
-	//	request.UseFD = true
-	//}
 
 	err := d.rpcClient.Call("DockerFuseFSOps.Stat", request, &reply)
 	if err != nil {
