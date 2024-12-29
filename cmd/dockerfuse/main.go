@@ -41,6 +41,8 @@ var (
 	mountPoint   string
 	path         string
 	daemonize    bool
+	debug        bool
+	jsonlog      bool
 	printVersion bool
 	// Version holds the version tag, and it is set at build-time
 	Version string
@@ -64,6 +66,10 @@ func init() {
 	flag.BoolVar(&daemonize, "daemonize", false, "Daemonize fuse process")
 	flag.BoolVar(&daemonize, "d", false, "Daemonize fuse process")
 
+	flag.BoolVar(&debug, "debug", false, "Log debug messages")
+
+	flag.BoolVar(&jsonlog, "json", false, "Log with json format")
+	flag.BoolVar(&jsonlog, "j", false, "Log with json format")
 }
 
 func main() {
@@ -72,6 +78,27 @@ func main() {
 		fmt.Printf("DockerFuse\nVersion: %s\nGit commit: %s\n", Version, GitCommit)
 		os.Exit(errorNone)
 	}
+
+	// Setup logger
+	var (
+		logHandler slog.Handler
+		logLevel   slog.Leveler
+	)
+	if debug {
+		logLevel = slog.LevelDebug
+	} else {
+		logLevel = slog.LevelInfo
+	}
+	if jsonlog {
+		logHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: logLevel,
+		})
+	} else {
+		logHandler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: logLevel,
+		})
+	}
+	slog.SetDefault(slog.New(logHandler))
 
 	if containerID == "" {
 		slog.Error("container id is not specified.\n")
