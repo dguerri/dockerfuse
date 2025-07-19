@@ -317,3 +317,36 @@ func TestNodeLookupError(t *testing.T) {
 	assert.Equal(t, syscall.ENOENT, errno)
 	m.AssertExpectations(t)
 }
+
+func TestNodeFlush(t *testing.T) {
+	var m mockFuseDockerClient
+	n := NewNode(&m, "/file", "")
+	handle := fusefs.FileHandle(uintptr(1))
+
+	m.On("close", mock.Anything, handle).Return(syscall.Errno(0)).Once()
+	flushErr := n.Flush(context.Background(), handle)
+	assert.Equal(t, syscall.Errno(0), flushErr)
+	m.AssertExpectations(t)
+}
+
+func TestNodeRelease(t *testing.T) {
+	var m mockFuseDockerClient
+	n := NewNode(&m, "/file", "")
+	handle := fusefs.FileHandle(uintptr(1))
+
+	m.On("close", mock.Anything, handle).Return(syscall.Errno(0)).Once()
+	releaseErr := n.Release(context.Background(), handle)
+	assert.Equal(t, syscall.Errno(0), releaseErr)
+	m.AssertExpectations(t)
+}
+
+func TestNodeFsync(t *testing.T) {
+	var m mockFuseDockerClient
+	n := NewNode(&m, "/file", "")
+	handle := fusefs.FileHandle(uintptr(1))
+
+	m.On("fsync", mock.Anything, handle, uint32(123)).Return(syscall.Errno(0)).Once()
+	fsyncErr := n.Fsync(context.Background(), handle, 123)
+	assert.Equal(t, syscall.Errno(0), fsyncErr)
+	m.AssertExpectations(t)
+}
