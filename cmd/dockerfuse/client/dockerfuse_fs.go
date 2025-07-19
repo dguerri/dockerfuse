@@ -108,7 +108,17 @@ func (node *Node) Link(ctx context.Context, target fusefs.InodeEmbedder, name st
 		return nil, errno
 	}
 
-	newNode = node.NewPersistentInode(ctx, NewNode(node.fuseDockerClient, newFullPath, ""), fusefs.StableAttr{Mode: target.EmbeddedInode().Mode()})
+	// Fetch attributes for the newly created link so that we can
+	// return proper StableAttr information.
+	var fuseAttr statAttr
+	errno = node.fuseDockerClient.stat(ctx, newFullPath, &fuseAttr)
+	if errno != 0 {
+		slog.Error("remote error in stat()", "path", newFullPath, "errno", errno)
+		return nil, errno
+	}
+	out.Attr = fuseAttr.FuseAttr
+
+	newNode = node.NewPersistentInode(ctx, NewNode(node.fuseDockerClient, newFullPath, fuseAttr.LinkTarget), fusefs.StableAttr{Mode: target.EmbeddedInode().Mode(), Ino: fuseAttr.FuseAttr.Ino})
 	return
 }
 
@@ -126,7 +136,7 @@ func (node *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 
 	out.Attr = fuseAttr.FuseAttr
 
-	stableAttr := fusefs.StableAttr{}
+	stableAttr := fusefs.StableAttr{Ino: out.Attr.Ino}
 	switch {
 	case out.Attr.Mode&fuse.S_IFDIR == fuse.S_IFDIR:
 		slog.Debug("adding dir", "path", fullPath)
