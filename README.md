@@ -2,21 +2,48 @@
 
 [![license](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![go report card](https://goreportcard.com/badge/github.com/dguerri/dockerfuse)](https://goreportcard.com/report/github.com/dguerri/dockerfuse) [![CI](https://github.com/dguerri/dockerfuse/actions/workflows/run-CI.yml/badge.svg)](https://github.com/dguerri/dockerfuse/actions/workflows/run-CI.yml) [![coverage status](https://coveralls.io/repos/github/dguerri/dockerfuse/badge.svg?branch=main)](https://coveralls.io/github/dguerri/dockerfuse?branch=main)
 
-***NOTE: this software is a WIP, use at your risk!***
+**NOTE: this software is a WIP, use at your risk!**
 
-DockerFuse allows mounting the filesystem of Linux Docker containers locally, without installing additional services on the container (e.g. ssh).
+DockerFuse lets you mount the filesystem of Linux Docker containers locally without installing additional services on the container.
 
 ![dockerfuse demo](doc/dockerfuse.gif)
 
+## Build
+
+DockerFuse is built using the provided Makefile. Running `make all` compiles the main `dockerfuse` binary and the architecture specific satellites used inside the container:
+
+```bash
+make all
+```
+
+The resulting files are `dockerfuse`, `dockerfuse_satellite_amd64` and `dockerfuse_satellite_arm64`.
+
+## Running
+
+Mount the root filesystem of a running container with:
+
+```bash
+sudo ./dockerfuse -i <container id or name> -m <mount point>
+```
+
+Specify `-path` to mount a sub directory and `-daemonize` to keep the process in the background.
+DockerFuse can connect to remote Docker engines using the standard `DOCKER_HOST` environment variables.
+
+## Makefile targets
+
+- `make test` – run unit tests.
+- `make quality_test` – run go vet, unit tests with coverage, golint and gocyclo.
+- `make interactive_test` – pull the alpine image and mount it under `./tmp` for a quick demo.
+
 ## Testing
 
-To run Unit tests (very few for now):
+To run the unit tests:
 
 ```bash
 make test
 ```
 
-To run an interactive test, pulling `alpine` image, spinning up a container and mounting its filesystem on ./tmp:
+To run an interactive test that spawns an `alpine` container and mounts it under `./tmp`:
 
 ```bash
 make interactive_test
@@ -77,6 +104,14 @@ Yup! Matter of fact Dockerfuse works great on minimal Docker containers, even wh
 ### Q. Does it work on Windows containers?
 
 Nope. Although it shouldn't be to hard to code, there is no support for Windows containers at this time.
+
+### Q. Does it require root privileges?
+
+Yes. Dockerfuse mounts the filesystem directly using FUSE and therefore needs privileges to perform the mount operation. Run it with `sudo` or as a user allowed to mount FUSE filesystems.
+
+### Q. Can I mount only a sub directory of a container?
+
+Absolutely. Use the `-path` option to specify the directory inside the container that you want to mount.
 
 ## License
 
