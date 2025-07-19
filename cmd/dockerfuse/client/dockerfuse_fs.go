@@ -49,6 +49,7 @@ func NewNode(fuseDockerClient DockerFuseClientInterface, fullPath string, linkTa
 	}
 }
 
+// Create creates a new file within the directory represented by node.
 func (node *Node) Create(ctx context.Context, name string, flags uint32, mode uint32, out *fuse.EntryOut) (newNode *fusefs.Inode, fh fusefs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
 	slog.Debug("Create() called", "path", node.fullPath, "name", name, "flags", flags, "mode", mode)
 
@@ -65,24 +66,28 @@ func (node *Node) Create(ctx context.Context, name string, flags uint32, mode ui
 	return
 }
 
+// Flush closes any cached state for the given handle.
 func (node *Node) Flush(ctx context.Context, fh fusefs.FileHandle) (syserr syscall.Errno) {
 	slog.Debug("Flush() called", "path", node.fullPath, "fh", fh)
 
 	return node.fuseDockerClient.close(ctx, fh)
 }
 
+// Release releases the handle on the remote side.
 func (node *Node) Release(ctx context.Context, fh fusefs.FileHandle) (syserr syscall.Errno) {
 	slog.Debug("Release() called", "path", node.fullPath, "fh", fh)
 
 	return node.fuseDockerClient.close(ctx, fh)
 }
 
+// Fsync forwards a file synchronization request to the container.
 func (node *Node) Fsync(ctx context.Context, fh fusefs.FileHandle, flags uint32) (syserr syscall.Errno) {
 	slog.Debug("Fsync() called", "path", node.fullPath, "fh", fh)
 
 	return node.fuseDockerClient.fsync(ctx, fh, flags)
 }
 
+// Getattr retrieves attributes for this node.
 func (node *Node) Getattr(ctx context.Context, fh fusefs.FileHandle, out *fuse.AttrOut) (errno syscall.Errno) {
 	slog.Debug("Getattr() called", "path", node.fullPath, "fh", fh)
 
@@ -98,6 +103,7 @@ func (node *Node) Getattr(ctx context.Context, fh fusefs.FileHandle, out *fuse.A
 	return
 }
 
+// Link creates a hard link named name pointing to target.
 func (node *Node) Link(ctx context.Context, target fusefs.InodeEmbedder, name string, out *fuse.EntryOut) (newNode *fusefs.Inode, errno syscall.Errno) {
 	slog.Debug("Link() called", "path", node.fullPath, "target", target, "name", name)
 
@@ -122,6 +128,7 @@ func (node *Node) Link(ctx context.Context, target fusefs.InodeEmbedder, name st
 	return
 }
 
+// Lookup looks for a child called name below this node.
 func (node *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (n *fusefs.Inode, syserr syscall.Errno) {
 	slog.Debug("Lookup() called", "path", node.fullPath, "name", name)
 	fullPath := filepath.Clean(filepath.Join(node.fullPath, name))
@@ -155,6 +162,7 @@ func (node *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	return node.NewPersistentInode(ctx, NewNode(node.fuseDockerClient, fullPath, fuseAttr.LinkTarget), stableAttr), 0
 }
 
+// Lseek changes the read/write offset of a file handle.
 func (node *Node) Lseek(ctx context.Context, fh fusefs.FileHandle, off uint64, whence uint32) (n uint64, syserr syscall.Errno) {
 	slog.Debug("Lseek() (Node) called", "path", node.fullPath)
 
@@ -162,6 +170,7 @@ func (node *Node) Lseek(ctx context.Context, fh fusefs.FileHandle, off uint64, w
 	return uint64(ntmp), syserr
 }
 
+// Mkdir creates a new directory under node with the given name.
 func (node *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.EntryOut) (newNode *fusefs.Inode, errno syscall.Errno) {
 	slog.Debug("Mkdir() called", "path", node.fullPath, "name", name, "node", node)
 
@@ -177,6 +186,7 @@ func (node *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse
 	return
 }
 
+// Open opens the current path and returns a handle.
 func (node *Node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, mode uint32, syserr syscall.Errno) {
 	slog.Debug("Open() called", "path", node.fullPath)
 	fh, fileMode, syserr := node.fuseDockerClient.open(ctx, node.fullPath, int(flags), fs.FileMode(mode))
@@ -187,6 +197,7 @@ func (node *Node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle,
 	return
 }
 
+// Readdir reads the directory contents.
 func (node *Node) Readdir(ctx context.Context) (ds fusefs.DirStream, errno syscall.Errno) {
 	slog.Debug("Readdir() called", "path", node.fullPath)
 	ds, errno = node.fuseDockerClient.readDir(ctx, node.fullPath)
@@ -197,6 +208,7 @@ func (node *Node) Readdir(ctx context.Context) (ds fusefs.DirStream, errno sysca
 	return
 }
 
+// Read reads from the given file handle into dest.
 func (node *Node) Read(ctx context.Context, fh fusefs.FileHandle, dest []byte, off int64) (result fuse.ReadResult, syserr syscall.Errno) {
 	slog.Debug("Read() called", "path", node.fullPath, "fh", fh, "off", off)
 
@@ -209,6 +221,7 @@ func (node *Node) Read(ctx context.Context, fh fusefs.FileHandle, dest []byte, o
 	return
 }
 
+// Readlink returns the target of this symbolic link.
 func (node *Node) Readlink(ctx context.Context) (linkTarget []byte, errno syscall.Errno) {
 	slog.Debug("Readlink() called", "path", node.fullPath)
 
@@ -220,6 +233,7 @@ func (node *Node) Readlink(ctx context.Context) (linkTarget []byte, errno syscal
 	return
 }
 
+// Rename renames a child of this node.
 func (node *Node) Rename(ctx context.Context, name string, newParent fusefs.InodeEmbedder, newName string, flags uint32) (errno syscall.Errno) {
 	slog.Debug("Rename() called", "path", node.fullPath, "name", name, "newParent", newParent, "newName", newName, "flags", flags)
 
@@ -234,6 +248,7 @@ func (node *Node) Rename(ctx context.Context, name string, newParent fusefs.Inod
 	return
 }
 
+// Rmdir removes a directory below this node.
 func (node *Node) Rmdir(ctx context.Context, name string) (errno syscall.Errno) {
 	slog.Debug("Rmdir() called", "path", node.fullPath, "name", name)
 
@@ -246,6 +261,7 @@ func (node *Node) Rmdir(ctx context.Context, name string) (errno syscall.Errno) 
 	return
 }
 
+// Setattr changes one or more attributes on the node.
 func (node *Node) Setattr(ctx context.Context, f fusefs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) (errno syscall.Errno) {
 	slog.Debug("Setattr() called", "path", node.fullPath, "in", *in)
 
@@ -259,6 +275,7 @@ func (node *Node) Setattr(ctx context.Context, f fusefs.FileHandle, in *fuse.Set
 	return
 }
 
+// Symlink creates a new symbolic link under node.
 func (node *Node) Symlink(ctx context.Context, target, name string, out *fuse.EntryOut) (newNode *fusefs.Inode, errno syscall.Errno) {
 	slog.Debug("Symlink() called", "path", node.fullPath, "target", target, "name", name)
 
@@ -272,6 +289,7 @@ func (node *Node) Symlink(ctx context.Context, target, name string, out *fuse.En
 	return
 }
 
+// Unlink removes a child node with the given name.
 func (node *Node) Unlink(ctx context.Context, name string) (errno syscall.Errno) {
 	slog.Debug("Unlink() called", "path", node.fullPath, "name", name)
 
@@ -285,6 +303,7 @@ func (node *Node) Unlink(ctx context.Context, name string) (errno syscall.Errno)
 	return
 }
 
+// Write writes data to the provided file handle.
 func (node *Node) Write(ctx context.Context, fh fusefs.FileHandle, data []byte, off int64) (n uint32, syserr syscall.Errno) {
 	slog.Debug("Write() called", "path", node.fullPath, "data", data, "off", off)
 

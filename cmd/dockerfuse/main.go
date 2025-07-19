@@ -31,7 +31,7 @@ const (
 	errorDaemon           = 2
 	errorCreateMount      = 3
 	errorGetUser          = 4
-	errorInvalidUidGid    = 5
+	errorInvalidUIDGid    = 5
 	errorInitDockerClient = 6
 	errorMountUnmount     = 7
 )
@@ -138,12 +138,12 @@ func main() {
 	uid, err := strconv.Atoi(user.Uid)
 	if err != nil {
 		slog.Error("invalid uid", "uid", user.Uid, "error", err)
-		os.Exit(errorInvalidUidGid)
+		os.Exit(errorInvalidUIDGid)
 	}
 	gid, err := strconv.Atoi(user.Gid)
 	if err != nil {
 		slog.Error("invalid gid", "gid", user.Gid, "error", err)
-		os.Exit(errorInvalidUidGid)
+		os.Exit(errorInvalidUIDGid)
 	}
 
 	fuseDockerClient, err := client.NewDockerFuseClient(containerID)

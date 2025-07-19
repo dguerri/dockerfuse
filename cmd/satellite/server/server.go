@@ -24,6 +24,7 @@ func NewDockerFuseFSOps() (fso *DockerFuseFSOps) {
 	}
 }
 
+// CloseAllFDs closes all file descriptors currently opened by the server.
 func (fso *DockerFuseFSOps) CloseAllFDs() {
 	for k, fd := range fso.fds {
 		fd.Close()
@@ -31,6 +32,7 @@ func (fso *DockerFuseFSOps) CloseAllFDs() {
 	}
 }
 
+// Stat returns file information about the requested path.
 func (fso *DockerFuseFSOps) Stat(request rpccommon.StatRequest, reply *rpccommon.StatReply) error {
 	log.Printf("Stat called: %v", request)
 
@@ -62,6 +64,7 @@ func (fso *DockerFuseFSOps) Stat(request rpccommon.StatRequest, reply *rpccommon
 	return nil
 }
 
+// ReadDir lists the contents of a directory.
 func (fso *DockerFuseFSOps) ReadDir(request rpccommon.ReadDirRequest, reply *rpccommon.ReadDirReply) error {
 	log.Printf("ReadDir called: %v", request)
 
@@ -92,6 +95,7 @@ func (fso *DockerFuseFSOps) ReadDir(request rpccommon.ReadDirRequest, reply *rpc
 	return nil
 }
 
+// Open opens the requested file and stores the resulting descriptor.
 func (fso *DockerFuseFSOps) Open(request rpccommon.OpenRequest, reply *rpccommon.OpenReply) error {
 	log.Printf("Open called: %v", request)
 
@@ -131,6 +135,7 @@ func (fso *DockerFuseFSOps) Open(request rpccommon.OpenRequest, reply *rpccommon
 	return nil
 }
 
+// Close closes an open file descriptor previously returned by Open.
 func (fso *DockerFuseFSOps) Close(request rpccommon.CloseRequest, reply *rpccommon.CloseReply) error {
 	log.Printf("Close called: %v", request)
 
@@ -147,6 +152,7 @@ func (fso *DockerFuseFSOps) Close(request rpccommon.CloseRequest, reply *rpccomm
 	return nil
 }
 
+// Read reads data from an open file descriptor.
 func (fso *DockerFuseFSOps) Read(request rpccommon.ReadRequest, reply *rpccommon.ReadReply) error {
 	log.Printf("Read called: %v", request)
 
@@ -165,6 +171,7 @@ func (fso *DockerFuseFSOps) Read(request rpccommon.ReadRequest, reply *rpccommon
 	return nil
 }
 
+// Seek moves the file offset associated with a descriptor.
 func (fso *DockerFuseFSOps) Seek(request rpccommon.SeekRequest, reply *rpccommon.SeekReply) error {
 	log.Printf("Seek called: %v", request)
 
@@ -182,6 +189,7 @@ func (fso *DockerFuseFSOps) Seek(request rpccommon.SeekRequest, reply *rpccommon
 	return nil
 }
 
+// Write writes data to an open file descriptor.
 func (fso *DockerFuseFSOps) Write(request rpccommon.WriteRequest, reply *rpccommon.WriteReply) error {
 	log.Printf("Write called: %v", request)
 
@@ -199,6 +207,7 @@ func (fso *DockerFuseFSOps) Write(request rpccommon.WriteRequest, reply *rpccomm
 	return nil
 }
 
+// Unlink removes a file from the filesystem.
 func (fso *DockerFuseFSOps) Unlink(request rpccommon.UnlinkRequest, reply *rpccommon.UnlinkReply) error {
 	log.Printf("Unlink called: %v", request)
 
@@ -209,6 +218,7 @@ func (fso *DockerFuseFSOps) Unlink(request rpccommon.UnlinkRequest, reply *rpcco
 	return nil
 }
 
+// Fsync flushes pending file changes to disk.
 func (fso *DockerFuseFSOps) Fsync(request rpccommon.FsyncRequest, reply *rpccommon.FsyncReply) error {
 	log.Printf("Fsync called: %v", request)
 
@@ -224,6 +234,7 @@ func (fso *DockerFuseFSOps) Fsync(request rpccommon.FsyncRequest, reply *rpccomm
 	return nil
 }
 
+// Mkdir creates a new directory.
 func (fso *DockerFuseFSOps) Mkdir(request rpccommon.MkdirRequest, reply *rpccommon.MkdirReply) error {
 	log.Printf("Mkdir called: %v", request)
 
@@ -239,6 +250,7 @@ func (fso *DockerFuseFSOps) Mkdir(request rpccommon.MkdirRequest, reply *rpccomm
 	return nil
 }
 
+// Rmdir removes a directory from the filesystem.
 func (fso *DockerFuseFSOps) Rmdir(request rpccommon.RmdirRequest, reply *rpccommon.RmdirReply) error {
 	log.Printf("Rmdir called: %v", request)
 
@@ -249,6 +261,7 @@ func (fso *DockerFuseFSOps) Rmdir(request rpccommon.RmdirRequest, reply *rpccomm
 	return nil
 }
 
+// Rename renames a file or directory.
 func (fso *DockerFuseFSOps) Rename(request rpccommon.RenameRequest, reply *rpccommon.RenameReply) error {
 	log.Printf("Rename called: %v", request)
 
@@ -260,6 +273,7 @@ func (fso *DockerFuseFSOps) Rename(request rpccommon.RenameRequest, reply *rpcco
 	return nil
 }
 
+// Readlink returns the target of a symbolic link.
 func (fso *DockerFuseFSOps) Readlink(request rpccommon.ReadlinkRequest, reply *rpccommon.ReadlinkReply) error {
 	log.Printf("Readlink called: %v", request)
 
@@ -271,6 +285,7 @@ func (fso *DockerFuseFSOps) Readlink(request rpccommon.ReadlinkRequest, reply *r
 	return nil
 }
 
+// Link creates a new hard link.
 func (fso *DockerFuseFSOps) Link(request rpccommon.LinkRequest, reply *rpccommon.LinkReply) error {
 	log.Printf("Link called: %v", request)
 
@@ -282,6 +297,7 @@ func (fso *DockerFuseFSOps) Link(request rpccommon.LinkRequest, reply *rpccommon
 	return nil
 }
 
+// Symlink creates a new symbolic link.
 func (fso *DockerFuseFSOps) Symlink(request rpccommon.SymlinkRequest, reply *rpccommon.SymlinkReply) error {
 	log.Printf("Symlink called: %v", request)
 
@@ -293,6 +309,7 @@ func (fso *DockerFuseFSOps) Symlink(request rpccommon.SymlinkRequest, reply *rpc
 	return nil
 }
 
+// SetAttr changes file attributes like mode, owner or timestamps.
 func (fso *DockerFuseFSOps) SetAttr(request rpccommon.SetAttrRequest, reply *rpccommon.SetAttrReply) (err error) {
 	log.Printf("SetAttr called: %v", request)
 
