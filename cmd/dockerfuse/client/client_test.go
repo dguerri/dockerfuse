@@ -4,12 +4,17 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
+	"syscall"
 	"testing"
 
+	"github.com/dguerri/dockerfuse/pkg/rpccommon"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	fusefs "github.com/hanwen/go-fuse/v2/fs"
+	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -374,4 +379,200 @@ func TestNewFuseDockerClient(t *testing.T) {
 	}
 	mDCF.AssertExpectations(t)
 
+}
+
+func TestDockerFuseClientStat(t *testing.T) {
+	var mRPCC mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &mRPCC}
+
+	expected := rpccommon.StatReply{
+		Mode:       0755,
+		Nlink:      1,
+		Ino:        42,
+		UID:        1000,
+		GID:        1000,
+		Atime:      1,
+		Mtime:      2,
+		Ctime:      3,
+		Size:       64,
+		Blocks:     1,
+		Blksize:    4096,
+		LinkTarget: "link",
+	}
+
+	mRPCC.On("Call", "DockerFuseFSOps.Stat", rpccommon.StatRequest{FullPath: "/test"}, mock.Anything).
+		Run(func(args mock.Arguments) {
+			reply := args.Get(2).(*rpccommon.StatReply)
+			*reply = expected
+		}).Return(nil)
+
+	var attr statAttr
+	errno := fdc.stat(context.Background(), "/test", &attr)
+
+	assert.Equal(t, syscall.Errno(0), errno)
+	assert.Equal(t, expected.Ino, attr.FuseAttr.Ino)
+	assert.Equal(t, uint64(expected.Size), attr.FuseAttr.Size)
+	assert.Equal(t, uint64(expected.Blocks), attr.FuseAttr.Blocks)
+	assert.Equal(t, expected.Mode, attr.FuseAttr.Mode)
+	assert.Equal(t, expected.Nlink, attr.FuseAttr.Nlink)
+	assert.Equal(t, expected.UID, attr.FuseAttr.Owner.Uid)
+	assert.Equal(t, expected.GID, attr.FuseAttr.Owner.Gid)
+	assert.Equal(t, expected.LinkTarget, attr.LinkTarget)
+
+	mRPCC.AssertExpectations(t)
+}
+
+func TestDockerFuseClientStatError(t *testing.T) {
+	var mRPCC mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &mRPCC}
+
+	mRPCC.On("Call", "DockerFuseFSOps.Stat", rpccommon.StatRequest{FullPath: "/enoent"}, mock.Anything).
+		Return(fmt.Errorf("errno: ENOENT"))
+
+	var attr statAttr
+	errno := fdc.stat(context.Background(), "/enoent", &attr)
+
+	assert.Equal(t, syscall.ENOENT, errno)
+	mRPCC.AssertExpectations(t)
+}
+
+func TestDockerFuseClientReadDir(t *testing.T) {
+	var mRPCC mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &mRPCC}
+
+	reply := rpccommon.ReadDirReply{DirEntries: []rpccommon.DirEntry{
+		{Ino: 1, Name: "."},
+		{Ino: 2, Name: ".."},
+		{Ino: 3, Name: "file", Mode: 0644},
+		{Ino: 4, Name: "dir", Mode: 0755},
+	}}
+
+	mRPCC.On("Call", "DockerFuseFSOps.ReadDir", rpccommon.StatRequest{FullPath: "/dir"}, mock.Anything).
+		Run(func(args mock.Arguments) {
+			r := args.Get(2).(*rpccommon.ReadDirReply)
+			*r = reply
+		}).Return(nil)
+
+	ds, errno := fdc.readDir(context.Background(), "/dir")
+
+	assert.Equal(t, syscall.Errno(0), errno)
+
+	var got []string
+	for ds.HasNext() {
+		e, _ := ds.Next()
+		got = append(got, e.Name)
+	}
+
+	assert.Equal(t, []string{"file", "dir"}, got)
+	mRPCC.AssertExpectations(t)
+}
+
+func TestDockerFuseClientReadDirError(t *testing.T) {
+	var mRPCC mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &mRPCC}
+
+	mRPCC.On("Call", "DockerFuseFSOps.ReadDir", rpccommon.StatRequest{FullPath: "/err"}, mock.Anything).
+		Return(fmt.Errorf("errno: EACCES"))
+
+	_, errno := fdc.readDir(context.Background(), "/err")
+
+	assert.Equal(t, syscall.EACCES, errno)
+	mRPCC.AssertExpectations(t)
+}
+
+func TestDockerFuseClientCreate(t *testing.T) {
+	var mRPCC mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &mRPCC}
+	mRPCC.On("Call", "DockerFuseFSOps.Open", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		reply := args.Get(2).(*rpccommon.OpenReply)
+		*reply = rpccommon.OpenReply{FD: 1, StatReply: rpccommon.StatReply{Mode: 0644}}
+	}).Return(nil)
+	var attr statAttr
+	fh, err := fdc.create(context.Background(), "/f", 0, 0644, &attr)
+	assert.Equal(t, fusefs.FileHandle(uintptr(1)), fh)
+	assert.Equal(t, syscall.Errno(0), err)
+	assert.Equal(t, uint32(0644), attr.FuseAttr.Mode)
+	mRPCC.AssertExpectations(t)
+}
+
+func TestDockerFuseClientOpenClose(t *testing.T) {
+	var mRPCC mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &mRPCC}
+	mRPCC.On("Call", "DockerFuseFSOps.Open", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		reply := args.Get(2).(*rpccommon.OpenReply)
+		*reply = rpccommon.OpenReply{FD: 2, StatReply: rpccommon.StatReply{Mode: 0600}}
+	}).Return(nil)
+	fh, mode, err := fdc.open(context.Background(), "/f", 0, 0)
+	assert.Equal(t, fusefs.FileHandle(uintptr(2)), fh)
+	assert.Equal(t, fs.FileMode(0600), mode)
+	assert.Equal(t, syscall.Errno(0), err)
+	mRPCC.On("Call", "DockerFuseFSOps.Close", rpccommon.CloseRequest{FD: fh.(uintptr)}, mock.Anything).Return(nil)
+	cerr := fdc.close(context.Background(), fh)
+	assert.Equal(t, syscall.Errno(0), cerr)
+	mRPCC.AssertExpectations(t)
+}
+
+func TestDockerFuseClientReadSeekWrite(t *testing.T) {
+	var mRPCC mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &mRPCC}
+	mRPCC.On("Call", "DockerFuseFSOps.Read", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		r := args.Get(2).(*rpccommon.ReadReply)
+		*r = rpccommon.ReadReply{Data: []byte("a")}
+	}).Return(nil)
+	data, err := fdc.read(context.Background(), fusefs.FileHandle(uintptr(1)), 0, 1)
+	assert.Equal(t, []byte("a"), data)
+	assert.Equal(t, syscall.Errno(0), err)
+	mRPCC.On("Call", "DockerFuseFSOps.Seek", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		r := args.Get(2).(*rpccommon.SeekReply)
+		*r = rpccommon.SeekReply{Num: 3}
+	}).Return(nil)
+	n, serr := fdc.seek(context.Background(), fusefs.FileHandle(uintptr(1)), 3, 0)
+	assert.Equal(t, int64(3), n)
+	assert.Equal(t, syscall.Errno(0), serr)
+	mRPCC.On("Call", "DockerFuseFSOps.Write", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		r := args.Get(2).(*rpccommon.WriteReply)
+		*r = rpccommon.WriteReply{Num: 1}
+	}).Return(nil)
+	wn, werr := fdc.write(context.Background(), fusefs.FileHandle(uintptr(1)), 0, []byte("a"))
+	assert.Equal(t, 1, wn)
+	assert.Equal(t, syscall.Errno(0), werr)
+	mRPCC.AssertExpectations(t)
+}
+
+func TestDockerFuseClientOtherOps(t *testing.T) {
+	var m mockRPCClient
+	fdc := &DockerFuseClient{rpcClient: &m}
+	m.On("Call", "DockerFuseFSOps.Unlink", rpccommon.UnlinkRequest{FullPath: "/a"}, mock.Anything).Return(nil)
+	assert.Equal(t, syscall.Errno(0), fdc.unlink(context.Background(), "/a"))
+	m.On("Call", "DockerFuseFSOps.Fsync", mock.Anything, mock.Anything).Return(nil)
+	assert.Equal(t, syscall.Errno(0), fdc.fsync(context.Background(), fusefs.FileHandle(uintptr(1)), 0))
+	m.On("Call", "DockerFuseFSOps.Mkdir", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		r := args.Get(2).(*rpccommon.MkdirReply)
+		*r = rpccommon.MkdirReply{Ino: 1}
+	}).Return(nil)
+	var attr statAttr
+	assert.Equal(t, syscall.Errno(0), fdc.mkdir(context.Background(), "/d", 0755, &attr))
+	m.On("Call", "DockerFuseFSOps.Rmdir", rpccommon.RmdirRequest{FullPath: "/d"}, mock.Anything).Return(nil)
+	assert.Equal(t, syscall.Errno(0), fdc.rmdir(context.Background(), "/d"))
+	m.On("Call", "DockerFuseFSOps.Rename", rpccommon.RenameRequest{FullPath: "/a", FullNewPath: "/b", Flags: 0}, mock.Anything).Return(nil)
+	assert.Equal(t, syscall.Errno(0), fdc.rename(context.Background(), "/a", "/b", 0))
+	m.On("Call", "DockerFuseFSOps.Readlink", rpccommon.ReadlinkRequest{FullPath: "/l"}, mock.Anything).Run(func(args mock.Arguments) {
+		r := args.Get(2).(*rpccommon.ReadlinkReply)
+		*r = rpccommon.ReadlinkReply{LinkTarget: "t"}
+	}).Return(nil)
+	link, err := fdc.readlink(context.Background(), "/l")
+	assert.Equal(t, []byte("t"), link)
+	assert.Equal(t, syscall.Errno(0), err)
+	m.On("Call", "DockerFuseFSOps.Link", rpccommon.LinkRequest{OldFullPath: "/o", NewFullPath: "/n"}, mock.Anything).Return(nil)
+	assert.Equal(t, syscall.Errno(0), fdc.link(context.Background(), "/o", "/n"))
+	m.On("Call", "DockerFuseFSOps.Symlink", rpccommon.SymlinkRequest{OldFullPath: "/o", NewFullPath: "/s"}, mock.Anything).Return(nil)
+	assert.Equal(t, syscall.Errno(0), fdc.symlink(context.Background(), "/o", "/s"))
+	m.On("Call", "DockerFuseFSOps.SetAttr", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		r := args.Get(2).(*rpccommon.SetAttrReply)
+		*r = rpccommon.SetAttrReply{Ino: 5}
+	}).Return(nil)
+	var out statAttr
+	in := &fuse.SetAttrIn{SetAttrInCommon: fuse.SetAttrInCommon{Valid: fuse.FATTR_SIZE, Size: 1}}
+	assert.Equal(t, syscall.Errno(0), fdc.setAttr(context.Background(), "/file", in, &out))
+	m.AssertExpectations(t)
 }
