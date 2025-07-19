@@ -16,7 +16,10 @@ func (e *echo) Echo(in string, out *string) error {
 func TestRPCClientFactoryNewClient(t *testing.T) {
 	serverConn, clientConn := net.Pipe()
 	srv := rpc.NewServer()
-	srv.RegisterName("Echo", new(echo))
+	err := srv.RegisterName("Echo", new(echo))
+	if err != nil {
+		t.Fatalf("error registering server: %v", err)
+	}
 	go srv.ServeConn(serverConn)
 
 	c := (&rpcClientFactory{}).NewClient(clientConn)

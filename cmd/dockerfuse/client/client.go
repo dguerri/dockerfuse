@@ -160,7 +160,10 @@ func (d *DockerFuseClient) uploadSatellite(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	tw.Write([]byte(satelliteBin))
+	_, err = tw.Write([]byte(satelliteBin))
+	if err != nil {
+		return err
+	}
 	tw.Close()
 
 	slog.Info("copying", "source", satelliteFullLocalPath, "destination", fmt.Sprintf("%s:%s", d.containerID, d.satelliteFullRemotePath))

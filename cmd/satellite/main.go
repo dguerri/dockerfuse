@@ -67,7 +67,10 @@ func main() {
 	defer close(osSignalChannel)
 
 	s := rpc.NewServer()
-	s.Register(fsops)
+	err := s.Register(fsops)
+	if err != nil {
+		log.Fatalf("error registering server: %v", err)
+	}
 
 	rwCloser := RWCloser{os.Stdin, os.Stdout}
 	defer rwCloser.Close()
