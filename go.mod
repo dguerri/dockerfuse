@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.23.7
 
 require (
-	github.com/docker/docker v27.4.1+incompatible
+	github.com/docker/docker v28.0.0+incompatible
 	github.com/hanwen/go-fuse/v2 v2.7.2
 	github.com/lalkh/containerd v1.4.3
 	github.com/stretchr/testify v1.10.0
