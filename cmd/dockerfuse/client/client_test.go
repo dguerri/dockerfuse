@@ -11,7 +11,9 @@ import (
 
 	"github.com/dguerri/dockerfuse/pkg/rpccommon"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/common"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	fusefs "github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -63,21 +65,21 @@ func (dc *mockDockerClient) ContainerExecAttach(ctx context.Context, execID stri
 	args := dc.Called(ctx, execID, config)
 	return args.Get(0).(types.HijackedResponse), args.Error(1)
 }
-func (dc *mockDockerClient) ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
+func (dc *mockDockerClient) ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (common.IDResponse, error) {
 	args := dc.Called(ctx, container, config)
-	return args.Get(0).(types.IDResponse), args.Error(1)
+	return args.Get(0).(common.IDResponse), args.Error(1)
 }
-func (dc *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+func (dc *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
 	args := dc.Called(ctx, containerID)
-	return args.Get(0).(types.ContainerJSON), args.Error(1)
+	return args.Get(0).(container.InspectResponse), args.Error(1)
 }
 func (dc *mockDockerClient) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options container.CopyToContainerOptions) error {
 	args := dc.Called(ctx, containerID, dstPath, content, options)
 	return args.Error(0)
 }
-func (dc *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
+func (dc *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (image.InspectResponse, []byte, error) {
 	args := dc.Called(ctx, imageID)
-	return args.Get(0).(types.ImageInspect), args.Get(1).([]byte), args.Error(2)
+	return args.Get(0).(image.InspectResponse), args.Get(1).([]byte), args.Error(2)
 }
 
 func TestNewFuseDockerClient(t *testing.T) {
@@ -119,15 +121,15 @@ func TestNewFuseDockerClient(t *testing.T) {
 		Cmd:          []string{satelliteFullRemotePath},
 	}
 	mDC.On("ContainerExecCreate", context.Background(), "test_container", config).Return(
-		types.IDResponse{ID: "test_execid"}, nil)
+		common.IDResponse{ID: "test_execid"}, nil)
 	mDC.On("ContainerExecAttach", context.Background(), "test_execid", container.ExecStartOptions{Tty: true}).Return(
 		types.HijackedResponse{Conn: nil}, nil)
 	mDC.On("CopyToContainer", context.Background(), "test_container", satelliteExecPath,
 		mock.AnythingOfType("*bufio.Reader"), container.CopyToContainerOptions{}).Return(nil)
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
@@ -171,7 +173,7 @@ func TestNewFuseDockerClient(t *testing.T) {
 	mDCF = mockDockerClientFactory{}
 
 	containerInspectError := fmt.Errorf("error on ContainerInspect")
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{}, containerInspectError)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{}, containerInspectError)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
 	_, err = NewDockerFuseClient("test_container")
@@ -193,9 +195,9 @@ func TestNewFuseDockerClient(t *testing.T) {
 
 	imageInspectWithRawError := fmt.Errorf("error on ImageInspectWithRaw")
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{}, []byte{}, imageInspectWithRawError)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{}, []byte{}, imageInspectWithRawError)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
@@ -217,9 +219,9 @@ func TestNewFuseDockerClient(t *testing.T) {
 	mDCF = mockDockerClientFactory{}
 
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{Architecture: "invalidarc64"}, []byte{}, nil)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{Architecture: "invalidarc64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
@@ -243,9 +245,9 @@ func TestNewFuseDockerClient(t *testing.T) {
 	osExecutableError := fmt.Errorf("error on os.Executable()")
 	mFS.On("Executable").Return("/test/pos/executable", osExecutableError)
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
@@ -270,9 +272,9 @@ func TestNewFuseDockerClient(t *testing.T) {
 	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte{}, osReadFileError)
 	mFS.On("Executable").Return("/test/pos/executable", nil)
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
@@ -299,9 +301,9 @@ func TestNewFuseDockerClient(t *testing.T) {
 	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
 	mFS.On("Executable").Return("/test/pos/executable", nil)
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
@@ -324,15 +326,15 @@ func TestNewFuseDockerClient(t *testing.T) {
 
 	containerExecCreateError := fmt.Errorf("error on ContainerExecCreate")
 	mDC.On("ContainerExecCreate", context.Background(), "test_container", config).Return(
-		types.IDResponse{}, containerExecCreateError)
+		common.IDResponse{}, containerExecCreateError)
 	mDC.On("CopyToContainer", context.Background(), "test_container", satelliteExecPath,
 		mock.AnythingOfType("*bufio.Reader"), container.CopyToContainerOptions{}).Return(nil)
 	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
 	mFS.On("Executable").Return("/test/pos/executable", nil)
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
@@ -357,15 +359,15 @@ func TestNewFuseDockerClient(t *testing.T) {
 	mDC.On("ContainerExecAttach", context.Background(), "test_execid", container.ExecStartOptions{Tty: true}).Return(
 		types.HijackedResponse{}, containerExecAttachError)
 	mDC.On("ContainerExecCreate", context.Background(), "test_container", config).Return(
-		types.IDResponse{ID: "test_execid"}, nil)
+		common.IDResponse{ID: "test_execid"}, nil)
 	mDC.On("CopyToContainer", context.Background(), "test_container", satelliteExecPath,
 		mock.AnythingOfType("*bufio.Reader"), container.CopyToContainerOptions{}).Return(nil)
 	mFS.On("ReadFile", satelliteFullLocalPath).Return([]byte("test executable content"), nil)
 	mFS.On("Executable").Return("/test/pos/executable", nil)
 	mDC.On("ImageInspectWithRaw", context.Background(), "test_container_image").Return(
-		types.ImageInspect{Architecture: "arm64"}, []byte{}, nil)
-	mDC.On("ContainerInspect", context.Background(), "test_container").Return(types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{Image: "test_container_image"},
+		image.InspectResponse{Architecture: "arm64"}, []byte{}, nil)
+	mDC.On("ContainerInspect", context.Background(), "test_container").Return(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{Image: "test_container_image"},
 	}, nil)
 	mDCF.On("NewClientWithOpts", mock.Anything).Return(&mDC, nil)
 
