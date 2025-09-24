@@ -187,13 +187,13 @@ func (node *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse
 }
 
 // Open opens the current path and returns a handle.
-func (node *Node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, mode uint32, syserr syscall.Errno) {
-	slog.Debug("Open() called", "path", node.fullPath)
-	fh, fileMode, syserr := node.fuseDockerClient.open(ctx, node.fullPath, int(flags), fs.FileMode(mode))
+func (node *Node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fuseFlags uint32, syserr syscall.Errno) {
+	slog.Debug("Open() called", "path", node.fullPath, "flags", flags)
+	fh, _, syserr = node.fuseDockerClient.open(ctx, node.fullPath, int(flags), fs.FileMode(flags))
 	if syserr != 0 {
 		slog.Error("remote error in open()", "path", node.fullPath, "errno", syserr)
 	}
-	mode = uint32(fileMode)
+	fuseFlags = fuse.FOPEN_DIRECT_IO
 	return
 }
 

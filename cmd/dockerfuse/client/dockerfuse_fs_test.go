@@ -143,10 +143,10 @@ func TestNodeOpenAndRead(t *testing.T) {
 	n := NewNode(&m, "/file", "")
 	handle := fusefs.FileHandle(uintptr(1))
 	m.On("open", mock.Anything, "/file", 0, fs.FileMode(0)).Return(handle, fs.FileMode(0644), syscall.Errno(0))
-	fh, mode, err := n.Open(context.Background(), 0)
+	fh, fuseFlags, err := n.Open(context.Background(), 0)
 	assert.Equal(t, syscall.Errno(0), err)
 	assert.Equal(t, handle, fh)
-	assert.Equal(t, uint32(0644), mode)
+	assert.Equal(t, uint32(fuse.FOPEN_DIRECT_IO), fuseFlags)
 
 	buf := make([]byte, 3)
 	m.On("read", mock.Anything, handle, int64(0), len(buf)).Return([]byte("abc"), syscall.Errno(0))
