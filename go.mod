@@ -51,7 +51,7 @@ require (
 )
 
 require (
-	github.com/docker/cli v27.4.1+incompatible
+	github.com/docker/cli v29.2.0+incompatible
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/sevlyar/go-daemon v0.1.6
 	golang.org/x/sys v0.34.0 // indirect
