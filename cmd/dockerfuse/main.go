@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"os/signal"
 	"os/user"
@@ -140,9 +141,17 @@ func main() {
 		slog.Error("invalid uid", "uid", user.Uid, "error", err)
 		os.Exit(errorInvalidUIDGid)
 	}
+	if uid < 0 || uid > int(math.MaxUint32) {
+		slog.Error("uid out of range for uint32", "uid", uid)
+		os.Exit(errorInvalidUIDGid)
+	}
 	gid, err := strconv.Atoi(user.Gid)
 	if err != nil {
 		slog.Error("invalid gid", "gid", user.Gid, "error", err)
+		os.Exit(errorInvalidUIDGid)
+	}
+	if gid < 0 || gid > int(math.MaxUint32) {
+		slog.Error("gid out of range for uint32", "gid", gid)
 		os.Exit(errorInvalidUIDGid)
 	}
 
