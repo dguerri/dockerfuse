@@ -1,19 +1,18 @@
 module github.com/dguerri/dockerfuse
 
-go 1.23.0
-
-toolchain go1.23.7
+go 1.24.0
 
 require (
 	github.com/docker/docker v28.0.0+incompatible
 	github.com/hanwen/go-fuse/v2 v2.7.2
 	github.com/lalkh/containerd v1.4.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.11.7 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/containerd v1.7.29 // indirect
 	github.com/containerd/errdefs v0.3.0 // indirect
@@ -23,7 +22,7 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -37,15 +36,15 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
-	go.opentelemetry.io/otel v1.28.0 // indirect
-	go.opentelemetry.io/otel/metric v1.28.0 // indirect
-	go.opentelemetry.io/otel/trace v1.28.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240725223205-93522f1f2a9f // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240725223205-93522f1f2a9f // indirect
-	google.golang.org/grpc v1.64.1 // indirect
-	google.golang.org/protobuf v1.35.2 // indirect
+	go.opentelemetry.io/otel v1.39.0 // indirect
+	go.opentelemetry.io/otel/metric v1.39.0 // indirect
+	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.0.2 // indirect
 )
@@ -54,5 +53,5 @@ require (
 	github.com/docker/cli v29.2.0+incompatible
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/sevlyar/go-daemon v0.1.6
-	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 )
