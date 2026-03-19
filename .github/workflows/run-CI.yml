@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
-        go: ["1.24.x", "1.25.x"]
+        go: ["1.24.x", "1.25.x", "1.26.x"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Setup Go
