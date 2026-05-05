@@ -166,7 +166,8 @@ func main() {
 	slog.Info("mounting FS", "path", mountPoint)
 	vEntryTTL := entryTTL
 	vAttrTTL := attrTTL
-	server, err := fs.Mount(mountPoint, client.NewNode(fuseDockerClient, path, ""), &fs.Options{
+	rootNode := client.NewNode(fuseDockerClient, path, "")
+	server, err := fs.Mount(mountPoint, rootNode, &fs.Options{
 		EntryTimeout:    &vEntryTTL,
 		AttrTimeout:     &vAttrTTL,
 		NegativeTimeout: &vEntryTTL,
@@ -179,6 +180,16 @@ func main() {
 	if err != nil {
 		slog.Error("mount failed", "error", err)
 		os.Exit(errorMountUnmount)
+	}
+
+	// Push-side cache invalidation: have the satellite watch the served
+	// path with inotify and stream events back. Without this, in-container
+	// mutations stay invisible on the host until the FUSE cache expires.
+	stopInvalidator, err := client.StartInvalidator(fuseDockerClient, rootNode.EmbeddedInode(), path)
+	if err != nil {
+		slog.Warn("invalidator: failed to start; in-container changes will not be visible until cache expires", "error", err)
+	} else {
+		defer stopInvalidator()
 	}
 
 	slog.Debug("setting up signal handler...")

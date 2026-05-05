@@ -271,3 +271,46 @@ func (r *SetAttrRequest) SetMTime(m time.Time) { r.MTime = m; r.ValidAttrs |= SA
 
 // SetSize marks Size as valid and sets it.
 func (r *SetAttrRequest) SetSize(s uint64) { r.Size = s; r.ValidAttrs |= SATTR_SIZE }
+
+// FsEvent op codes for FsEvent.Op.
+const (
+	FsEventCreated  uint8 = 1
+	FsEventDeleted  uint8 = 2
+	FsEventModified uint8 = 3
+	FsEventMoved    uint8 = 4
+)
+
+// FsEvent describes a single filesystem change inside the watched tree.
+// ParentPath is the directory containing Name, expressed as a slash-separated
+// path relative to the watch root ("." for the root itself). Name is empty
+// for self-targeted events on a watched directory.
+type FsEvent struct {
+	ParentPath string
+	Name       string
+	Op         uint8
+}
+
+// WatchRequest tells the satellite to start (or replace) a recursive
+// filesystem watch rooted at Root. Idempotent for the same root.
+type WatchRequest struct {
+	Root string
+}
+
+// WatchReply is the satellite's ack for WatchRequest.
+type WatchReply struct{}
+
+// WaitForEventsRequest is a long-poll for buffered FsEvents. The satellite
+// returns when at least one event is available or after TimeoutMs has
+// elapsed (whichever comes first). TimeoutMs=0 means "return what's
+// already buffered, do not block".
+type WaitForEventsRequest struct {
+	TimeoutMs uint32
+}
+
+// WaitForEventsReply carries the drained events. Overflowed is true when
+// the satellite's buffer overflowed since the last call and the host should
+// invalidate aggressively.
+type WaitForEventsReply struct {
+	Events     []FsEvent
+	Overflowed bool
+}

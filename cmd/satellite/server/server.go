@@ -15,12 +15,17 @@ import (
 type DockerFuseFSOps struct {
 	// Open file descriptors
 	fds map[uintptr]file
+	// watcher feeds inotify-driven change events back to the host so it can
+	// invalidate its FUSE cache after in-container mutations. nil until
+	// Watch() is called by the host.
+	watcher *fsWatcher
 }
 
 // NewDockerFuseFSOps returns a new DockerFuseFSOps
 func NewDockerFuseFSOps() (fso *DockerFuseFSOps) {
 	return &DockerFuseFSOps{
-		fds: make(map[uintptr]file),
+		fds:     make(map[uintptr]file),
+		watcher: newFSWatcher(),
 	}
 }
 
@@ -30,6 +35,26 @@ func (fso *DockerFuseFSOps) CloseAllFDs() {
 		fd.Close()
 		delete(fso.fds, k)
 	}
+	if fso.watcher != nil {
+		fso.watcher.stop()
+	}
+}
+
+// Watch starts (or replaces) a recursive filesystem watch rooted at
+// request.Root. Idempotent for the same root. The host calls this once at
+// mount-time and then long-polls WaitForEvents.
+func (fso *DockerFuseFSOps) Watch(request rpccommon.WatchRequest, _ *rpccommon.WatchReply) error {
+	log.Printf("Watch: root=%s", request.Root)
+	return fso.watcher.start(request.Root)
+}
+
+// WaitForEvents long-polls for buffered FsEvents from the watcher. Returns
+// after the first event arrives or after request.TimeoutMs has elapsed.
+func (fso *DockerFuseFSOps) WaitForEvents(request rpccommon.WaitForEventsRequest, reply *rpccommon.WaitForEventsReply) error {
+	events, overflowed := fso.watcher.wait(request.TimeoutMs)
+	reply.Events = events
+	reply.Overflowed = overflowed
+	return nil
 }
 
 // Stat returns file information about the requested path.
