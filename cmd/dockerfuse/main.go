@@ -172,7 +172,9 @@ func main() {
 		AttrTimeout:     &vAttrTTL,
 		NegativeTimeout: &vEntryTTL,
 		MountOptions: fuse.MountOptions{
-			FsName: fmt.Sprintf("dockerfuse-%s", containerID),
+			FsName:  fmt.Sprintf("dockerfuse-%s", containerID),
+			Backend: goFuseBackend(),
+			Debug:   debug,
 		},
 		UID: uint32(uid),
 		GID: uint32(gid),

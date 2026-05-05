@@ -27,6 +27,25 @@ sudo ./dockerfuse -i <container id or name> -m <mount point>
 Specify `-path` to mount a sub directory and `-daemonize` to keep the process in the background.
 DockerFuse can connect to remote Docker engines using the standard `DOCKER_HOST` environment variables.
 
+### macOS: FSKit backend (macOS 15.4+, macFUSE 5.2+)
+
+On macOS, DockerFuse defaults to the macFUSE kernel extension backend. To use Apple's [FSKit](https://developer.apple.com/documentation/fskit) framework instead (no kernel extension, no "Reduced Security" mode required), pass `--backend=fskit`:
+
+```bash
+sudo ./dockerfuse --backend=fskit -i <container id or name> -m <mount point>
+```
+
+Requirements:
+
+- macOS 15.4 (Sequoia) or later
+- macFUSE 5.2 or later (provides the `MFMount.framework` used to invoke the FSKit mount path)
+- The macFUSE app (`/Library/Filesystems/macfuse.fs/Contents/Resources/macfuse.app`) must be opened at least once so the FSKit file system extension is registered with the system
+- The macFUSE FSKit extension must be enabled under **System Settings → General → Login Items & Extensions → File System Extensions** (look for an entry signed by Benjamin Fleischer)
+
+The backend is selected at the go-fuse layer via `MountOptions.Backend = "fskit"`. While that change is being upstreamed, this repository depends on a forked go-fuse via a `replace` directive in `go.mod`. The standard `go build` workflow handles this transparently.
+
+> **Note:** The FSKit backend is experimental. On macOS 26 (Tahoe) it has been reported unreliable due to known issues in macFUSE's FSKit integration ([macfuse#1132](https://github.com/macfuse/macfuse/issues/1132), [macfuse#1158](https://github.com/macfuse/macfuse/issues/1158)). If you encounter a "System Extension Blocked" error or "File system named macfuse not found", omit `--backend=fskit` to fall back to the kext backend.
+
 ## Makefile targets
 
 - `make test` – run unit tests.
@@ -106,6 +125,8 @@ Nope. Although it shouldn't be to hard to code, there is no support for Windows 
 ### Q. Does it require root privileges?
 
 Yes. Dockerfuse mounts the filesystem directly using FUSE and therefore needs privileges to perform the mount operation. Run it with `sudo` or as a user allowed to mount FUSE filesystems.
+
+BUT: on macOS, using `--backend=fskit` (macFUSE 5.0+, macOS 15.4+) removes the need to run macOS in "Reduced Security" mode, and the need for `sudo`.
 
 ### Q. Can I mount only a sub directory of a container?
 

@@ -1,0 +1,3 @@
+[submodule "go-fuse"]
+	path = go-fuse
+	url = https://github.com/dguerri/go-fuse.git
