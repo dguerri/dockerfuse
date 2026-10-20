@@ -166,12 +166,16 @@ func main() {
 	slog.Info("mounting FS", "path", mountPoint)
 	vEntryTTL := entryTTL
 	vAttrTTL := attrTTL
-	server, err := fs.Mount(mountPoint, client.NewNode(fuseDockerClient, path, ""), &fs.Options{
+	newRoot := func() *client.Node {
+		return client.NewNode(fuseDockerClient, path, "")
+	}
+	server, err := mountFS(mountPoint, newRoot, &fs.Options{
 		EntryTimeout:    &vEntryTTL,
 		AttrTimeout:     &vAttrTTL,
 		NegativeTimeout: &vEntryTTL,
 		MountOptions: fuse.MountOptions{
 			FsName: fmt.Sprintf("dockerfuse-%s", containerID),
+			Debug:  debug,
 		},
 		UID: uint32(uid),
 		GID: uint32(gid),
@@ -190,7 +194,12 @@ func main() {
 	server.Wait()
 }
 
-func shutdown(server *fuse.Server, signals <-chan os.Signal) {
+type Server interface {
+	Wait()
+	Unmount() error
+}
+
+func shutdown(server Server, signals <-chan os.Signal) {
 	<-signals
 	if err := server.Unmount(); err != nil {
 		slog.Error("unmount failed", "error", err)

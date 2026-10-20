@@ -241,13 +241,19 @@ func TestNodeLinkSymlinkRenameEtc(t *testing.T) {
 	assert.Equal(t, syscall.Errno(0), errno)
 
 	m.On("symlink", mock.Anything, "/dir/t", "/dir/s").Return(syscall.Errno(0))
+	m.On("stat", mock.Anything, "/dir/s", mock.Anything).Run(func(args mock.Arguments) {
+		attr := args.Get(2).(*statAttr)
+		attr.FuseAttr = fuse.Attr{Ino: 4}
+	}).Return(syscall.Errno(0))
 	n2, syErr := dir.Symlink(context.Background(), "/dir/t", "s", &out)
 	assert.NotNil(t, n2)
 	assert.Equal(t, syscall.Errno(0), syErr)
 
-	m.On("rename", mock.Anything, "/dir/t", "r", uint32(0)).Return(syscall.Errno(0))
+	m.On("rename", mock.Anything, "/dir/t", "/dir/r", uint32(0)).Return(syscall.Errno(0))
+	dir.AddChild("t", dir.NewPersistentInode(context.Background(), target, fusefs.StableAttr{Ino: 99}), true)
 	rerr := dir.Rename(context.Background(), "t", dir, "r", 0)
 	assert.Equal(t, syscall.Errno(0), rerr)
+	assert.Equal(t, "/dir/r", target.fullPath)
 
 	m.On("rmdir", mock.Anything, "/dir/x").Return(syscall.Errno(0))
 	rderr := dir.Rmdir(context.Background(), "x")

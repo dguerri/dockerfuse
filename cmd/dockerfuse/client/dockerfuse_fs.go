@@ -238,14 +238,34 @@ func (node *Node) Rename(ctx context.Context, name string, newParent fusefs.Inod
 	slog.Debug("Rename() called", "path", node.fullPath, "name", name, "newParent", newParent, "newName", newName, "flags", flags)
 
 	fullPath := filepath.Clean(filepath.Join(node.fullPath, name))
-	fullNewPath := filepath.Clean(filepath.Join(newParent.EmbeddedInode().Path(nil), newName))
+	newParentPath := newParent.EmbeddedInode().Path(nil)
+	if np, ok := newParent.(*Node); ok && np.fullPath != "" {
+		newParentPath = np.fullPath
+	}
+	fullNewPath := filepath.Clean(filepath.Join(newParentPath, newName))
 
 	errno = node.fuseDockerClient.rename(ctx, fullPath, fullNewPath, flags)
 	if errno != 0 {
 		slog.Error("remote error in rename()", "path", node.fullPath, "errno", errno)
 		return errno
 	}
+	if flags&fusefs.RENAME_EXCHANGE != 0 {
+		updateNodePath(newParent.EmbeddedInode().GetChild(newName), fullPath)
+	}
+	updateNodePath(node.GetChild(name), fullNewPath)
 	return
+}
+
+func updateNodePath(inode *fusefs.Inode, newFullPath string) {
+	if inode == nil {
+		return
+	}
+	if n, ok := inode.Operations().(*Node); ok {
+		n.fullPath = newFullPath
+	}
+	for childName, childInode := range inode.Children() {
+		updateNodePath(childInode, filepath.Clean(filepath.Join(newFullPath, childName)))
+	}
 }
 
 // Rmdir removes a directory below this node.
@@ -285,7 +305,16 @@ func (node *Node) Symlink(ctx context.Context, target, name string, out *fuse.En
 		slog.Error("remote error in symlink()", "path", node.fullPath, "errno", errno)
 		return nil, errno
 	}
-	newNode = node.NewPersistentInode(ctx, NewNode(node.fuseDockerClient, newFullPath, node.fullPath), fusefs.StableAttr{Mode: fuse.S_IFLNK})
+
+	var fuseAttr statAttr
+	errno = node.fuseDockerClient.stat(ctx, newFullPath, &fuseAttr)
+	if errno != 0 {
+		slog.Error("remote error in stat()", "path", newFullPath, "errno", errno)
+		return nil, errno
+	}
+	out.Attr = fuseAttr.FuseAttr
+
+	newNode = node.NewPersistentInode(ctx, NewNode(node.fuseDockerClient, newFullPath, target), fusefs.StableAttr{Mode: fuse.S_IFLNK, Ino: fuseAttr.FuseAttr.Ino})
 	return
 }
 
