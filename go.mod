@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/docker/docker v28.0.0+incompatible
-	github.com/hanwen/go-fuse/v2 v2.7.2
+	github.com/hanwen/go-fuse/v2 v2.12.1-0.20261031100948-d54f65d20662
 	github.com/lalkh/containerd v1.4.3
 	github.com/stretchr/testify v1.11.1
 )
@@ -21,6 +21,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -53,5 +54,5 @@ require (
 	github.com/docker/cli v29.2.0+incompatible
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/sevlyar/go-daemon v0.1.6
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.39.0
 )
