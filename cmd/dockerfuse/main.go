@@ -45,6 +45,7 @@ var (
 	debug        bool
 	jsonlog      bool
 	printVersion bool
+	dockerContext string
 	// Version holds the version tag, and it is set at build-time
 	Version string
 	// GitCommit holds the git commit used to build the binary. It is set at build-time
@@ -71,10 +72,16 @@ func init() {
 
 	flag.BoolVar(&jsonlog, "json", false, "Log with json format")
 	flag.BoolVar(&jsonlog, "j", false, "Log with json format")
+
+	flag.StringVar(&dockerContext, "context", "", "Docker context to use")
+	flag.StringVar(&dockerContext, "c", "", "Docker context to use")
 }
 
 func main() {
 	flag.Parse()
+	if dockerContext != "" {
+		_ = os.Setenv("DOCKER_CONTEXT", dockerContext)
+	}
 	if printVersion {
 		fmt.Printf("DockerFuse\nVersion: %s\nGit commit: %s\n", Version, GitCommit)
 		os.Exit(errorNone)

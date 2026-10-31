@@ -83,6 +83,9 @@ func (dc *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID str
 }
 
 func TestNewFuseDockerClient(t *testing.T) {
+	t.Setenv("DOCKER_CONTEXT", "")
+	t.Setenv("DOCKER_HOST", "")
+
 	// *** Setup
 	var (
 		mDC                                                               mockDockerClient

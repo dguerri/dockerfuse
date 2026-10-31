@@ -25,7 +25,7 @@ sudo ./dockerfuse -i <container id or name> -m <mount point>
 ```
 
 Specify `-path` to mount a sub directory and `-daemonize` to keep the process in the background.
-DockerFuse can connect to remote Docker engines using the standard `DOCKER_HOST` environment variables.
+DockerFuse honours Docker contexts via the standard `DOCKER_CONTEXT` environment variable, the `-c` / `--context` command-line flag, or the active context in `~/.docker/config.json`. It also connects to remote Docker engines using the standard `DOCKER_HOST` environment variable.
 
 ### macOS: FSKit backend (macOS 15.4+, macFUSE 5.5+)
 
@@ -105,7 +105,7 @@ In short, microsoft/vscode-container-client won't work on distroless containers 
 ### Q. Does it work on remote Docker servers?
 
 Yeah. Dockerfuse can work on local Docker instances or on remote ones.
-It uses the environment (i.e., `DOCKER_HOST`, `DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`) to connect to the Docker server, and then it operates via TCP(*).
+It uses the active Docker context or environment (i.e., `DOCKER_CONTEXT`, `DOCKER_HOST`, `DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`) to connect to the Docker server, and then it operates via TCP(*).
 
 (*) Technically, Dockerfuse uses a TCP connection which is "upgraded" from an HTTP connection, similarly to what happens with web sockets.
 
