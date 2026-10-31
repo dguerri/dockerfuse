@@ -1,11 +1,13 @@
 module github.com/dguerri/dockerfuse
 
-go 1.24.0
+go 1.27.0
 
 require (
+	github.com/docker/cli v29.2.0+incompatible
 	github.com/docker/docker v28.0.0+incompatible
 	github.com/hanwen/go-fuse/v2 v2.12.1-0.20261031100948-d54f65d20662
 	github.com/lalkh/containerd v1.4.3
+	github.com/sevlyar/go-daemon v0.1.6
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -27,6 +29,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -43,16 +46,10 @@ require (
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.0.2 // indirect
-)
-
-require (
-	github.com/docker/cli v29.2.0+incompatible
-	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/sevlyar/go-daemon v0.1.6
-	golang.org/x/sys v0.39.0
 )

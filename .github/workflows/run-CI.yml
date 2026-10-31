@@ -22,7 +22,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.25.x"
+          go-version: "1.27.x"
 
       - name: Checkout
         uses: actions/checkout@v5
@@ -34,14 +34,14 @@ jobs:
         with:
           version: "latest"
           install-go: false
-          cache-key: "1.25.x"
+          cache-key: "1.27.x"
 
   ci:
     strategy:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
-        go: ["1.24.x", "1.25.x", "1.26.x"]
+        go: ["1.27.x"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Setup Go
