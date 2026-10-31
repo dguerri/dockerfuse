@@ -25,7 +25,7 @@ sudo ./dockerfuse -i <container id or name> -m <mount point>
 ```
 
 Specify `-path` to mount a sub directory and `-daemonize` to keep the process in the background.
-DockerFuse honours Docker contexts via the standard `DOCKER_CONTEXT` environment variable, the `-c` / `--context` command-line flag, or the active context in `~/.docker/config.json`. It also connects to remote Docker engines using the standard `DOCKER_HOST` environment variable.
+DockerFuse honours Docker contexts via the standard `DOCKER_CONTEXT` environment variable, the `-c` / `--context` command-line flag, or the active context in `~/.docker/config.json`. It also connects to remote Docker engines using the standard `DOCKER_HOST` environment variable. TLS certificate verification is always enabled by default; use `--disable-tls-verify` (or `DOCKER_TLS_VERIFY=0`) to bypass validation when using self-signed certificates.
 
 ### macOS: FSKit backend (macOS 15.4+, macFUSE 5.5+)
 

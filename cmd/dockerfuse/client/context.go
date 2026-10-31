@@ -28,6 +28,10 @@ type dockerContextMeta struct {
 	Endpoints map[string]dockerEndpointMeta `json:"Endpoints"`
 }
 
+func isTLSSkipVerify() bool {
+	return os.Getenv("DOCKER_TLS_VERIFY") == "0"
+}
+
 func getDockerConfigDir() string {
 	if dir := os.Getenv("DOCKER_CONFIG"); dir != "" {
 		return dir
@@ -145,7 +149,7 @@ func dockerClientOptsFromContext(ctxName string) ([]client.Opt, error) {
 		opts = append(opts, client.WithTLSClientConfig(caFile, certFile, keyFile))
 	}
 
-	if dockerEP.SkipTLSVerify {
+	if isTLSSkipVerify() {
 		opts = append(opts, func(c *client.Client) error {
 			if tr, ok := c.HTTPClient().Transport.(*http.Transport); ok {
 				if tr.TLSClientConfig == nil {

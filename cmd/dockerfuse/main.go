@@ -46,6 +46,7 @@ var (
 	jsonlog      bool
 	printVersion bool
 	dockerContext string
+	disableTLSVerify bool
 	// Version holds the version tag, and it is set at build-time
 	Version string
 	// GitCommit holds the git commit used to build the binary. It is set at build-time
@@ -75,12 +76,20 @@ func init() {
 
 	flag.StringVar(&dockerContext, "context", "", "Docker context to use")
 	flag.StringVar(&dockerContext, "c", "", "Docker context to use")
+
+	flag.BoolVar(&disableTLSVerify, "disable-tls-verify", false, "Disable TLS certificate verification (insecure)")
+	flag.BoolVar(&disableTLSVerify, "disable-tls", false, "Disable TLS certificate verification (insecure)")
+	flag.BoolVar(&disableTLSVerify, "tls-skip-verify", false, "Disable TLS certificate verification (insecure)")
+	flag.BoolVar(&disableTLSVerify, "insecure", false, "Disable TLS certificate verification (insecure)")
 }
 
 func main() {
 	flag.Parse()
 	if dockerContext != "" {
 		_ = os.Setenv("DOCKER_CONTEXT", dockerContext)
+	}
+	if disableTLSVerify {
+		_ = os.Setenv("DOCKER_TLS_VERIFY", "0")
 	}
 	if printVersion {
 		fmt.Printf("DockerFuse\nVersion: %s\nGit commit: %s\n", Version, GitCommit)

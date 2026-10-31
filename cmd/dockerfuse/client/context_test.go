@@ -104,7 +104,8 @@ func TestDockerClientOptsFromContext(t *testing.T) {
 		assert.Len(t, opts, 3) // HTTPClient, Host, DialContext
 	})
 
-	t.Run("context with TLS certificates and SkipTLSVerify", func(t *testing.T) {
+	t.Run("context with TLS certificates verifies TLS by default", func(t *testing.T) {
+		t.Setenv("DOCKER_TLS_VERIFY", "")
 		ctxID := writeContextMeta(t, tempDir, "tls-ctx", "tcp://10.0.0.1:2376", true)
 		tlsDir := filepath.Join(tempDir, "contexts", "tls", ctxID, "docker")
 		require.NoError(t, os.MkdirAll(tlsDir, 0755))
@@ -114,7 +115,15 @@ func TestDockerClientOptsFromContext(t *testing.T) {
 
 		opts, err := dockerClientOptsFromContext("tls-ctx")
 		require.NoError(t, err)
-		// WithHost, WithTLSClientConfig, SkipTLSVerify opt
+		// TLS is verified by default: WithHost, WithTLSClientConfig (no InsecureSkipVerify)
+		assert.Len(t, opts, 2)
+	})
+
+	t.Run("context with TLS certificates allows disabling verification via DOCKER_TLS_VERIFY=0", func(t *testing.T) {
+		t.Setenv("DOCKER_TLS_VERIFY", "0")
+		opts, err := dockerClientOptsFromContext("tls-ctx")
+		require.NoError(t, err)
+		// WithHost, WithTLSClientConfig, plus InsecureSkipVerify opt
 		assert.Len(t, opts, 3)
 	})
 
